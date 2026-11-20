@@ -1,0 +1,800 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core helper primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser()
+        && request.auth.token.email != null
+        && request.auth.token.email == 'anthonystrong510@gmail.com';
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        isBootstrappedAdmin()
+        || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Validation Blueprints
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll([
+        'uid',
+        'handle',
+        'displayName',
+        'linkedWallet',
+        'solBalance',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'uid',
+        'handle',
+        'displayName',
+        'linkedWallet',
+        'solBalance',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.uid is string && data.uid == userId
+      && data.handle is string && data.handle.size() >= 2 && data.handle.size() <= 32 && data.handle.matches('^[a-zA-Z0-9_]+$')
+      && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 50
+      && data.linkedWallet is string && data.linkedWallet.size() <= 64
+      && data.solBalance is number && data.solBalance >= 0 && data.solBalance <= 1000000
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivate(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt'])
+      && data.keys().hasOnly(['uid', 'email', 'createdAt'])
+      && data.uid is string && data.uid == userId
+      && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+      && data.createdAt is timestamp;
+    }
+
+    function isValidUserHolding(data, userId, coinId) {
+      return data.keys().hasAll([
+        'coinId',
+        'ownerUid',
+        'ticker',
+        'name',
+        'emblemIcon',
+        'emblemColor',
+        'tokenBalance',
+        'avgBuyPriceSol',
+        'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'coinId',
+        'ownerUid',
+        'ticker',
+        'name',
+        'emblemIcon',
+        'emblemColor',
+        'tokenBalance',
+        'avgBuyPriceSol',
+        'updatedAt'
+      ])
+      && data.coinId is string && data.coinId == coinId
+      && data.ownerUid is string && data.ownerUid == userId
+      && data.ticker is string && data.ticker.size() >= 2 && data.ticker.size() <= 10
+      && data.name is string && data.name.size() >= 2 && data.name.size() <= 32
+      && data.emblemIcon in ['rocket', 'flame', 'zap', 'crown', 'gem', 'ghost', 'cat', 'dog']
+      && data.emblemColor is string && data.emblemColor.size() == 7 && data.emblemColor.matches('^#[0-9a-fA-F]{6}$')
+      && data.tokenBalance is number && data.tokenBalance >= 0 && data.tokenBalance <= 1000000000
+      && data.avgBuyPriceSol is number && data.avgBuyPriceSol >= 0 && data.avgBuyPriceSol <= 1000
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidPerpPosition(data, userId, posId) {
+      return data.keys().hasAll([
+        'id',
+        'ownerUid',
+        'coinId',
+        'ticker',
+        'side',
+        'collateralSol',
+        'leverage',
+        'entryPriceSol',
+        'liquidationPriceSol',
+        'status',
+        'realizedPnlSol',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id',
+        'ownerUid',
+        'coinId',
+        'ticker',
+        'side',
+        'collateralSol',
+        'leverage',
+        'entryPriceSol',
+        'liquidationPriceSol',
+        'status',
+        'realizedPnlSol',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.id is string && data.id == posId && data.id.size() <= 64
+      && data.ownerUid is string && data.ownerUid == userId
+      && data.coinId is string && data.coinId.size() >= 1 && data.coinId.size() <= 64
+      && data.ticker is string && data.ticker.size() >= 2 && data.ticker.size() <= 10
+      && data.side in ['long', 'short']
+      && data.collateralSol is number && data.collateralSol > 0 && data.collateralSol <= 10000
+      && data.leverage is number && data.leverage >= 1 && data.leverage <= 20
+      && data.entryPriceSol is number && data.entryPriceSol > 0 && data.entryPriceSol <= 1000
+      && data.liquidationPriceSol is number && data.liquidationPriceSol >= 0 && data.liquidationPriceSol <= 10000
+      && data.status in ['open', 'closed', 'liquidated']
+      && data.realizedPnlSol is number && data.realizedPnlSol >= -100000 && data.realizedPnlSol <= 100000
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidRewardClaim(data, userId, claimId) {
+      return data.keys().hasAll(['id', 'ownerUid', 'coinId', 'ticker', 'claimedSol', 'createdAt'])
+      && data.keys().hasOnly(['id', 'ownerUid', 'coinId', 'ticker', 'claimedSol', 'createdAt'])
+      && data.id is string && data.id == claimId && data.id.size() <= 64
+      && data.ownerUid is string && data.ownerUid == userId
+      && data.coinId is string && data.coinId.size() >= 1 && data.coinId.size() <= 64
+      && data.ticker is string && data.ticker.size() >= 2 && data.ticker.size() <= 10
+      && data.claimedSol is number && data.claimedSol > 0 && data.claimedSol <= 10000
+      && data.createdAt is timestamp;
+    }
+
+    function isValidMemeCoin(data, coinId) {
+      return data.keys().hasAll([
+        'id',
+        'name',
+        'ticker',
+        'description',
+        'chain',
+        'emblemIcon',
+        'emblemColor',
+        'website',
+        'twitter',
+        'creatorUid',
+        'creatorHandle',
+        'virtualSol',
+        'virtualTokens',
+        'realSol',
+        'totalSupply',
+        'priceSol',
+        'marketCapSol',
+        'volumeSol',
+        'tradeCount',
+        'graduated',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id',
+        'name',
+        'ticker',
+        'description',
+        'chain',
+        'emblemIcon',
+        'emblemColor',
+        'website',
+        'twitter',
+        'creatorUid',
+        'creatorHandle',
+        'virtualSol',
+        'virtualTokens',
+        'realSol',
+        'totalSupply',
+        'priceSol',
+        'marketCapSol',
+        'volumeSol',
+        'tradeCount',
+        'graduated',
+        'mode',
+        'holderRewardPoolSol',
+        'creatorFeesSol',
+        'gasCollectedSol',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.id is string && data.id == coinId && data.id.size() <= 64
+      && data.name is string && data.name.size() >= 2 && data.name.size() <= 32
+      && data.ticker is string && data.ticker.size() >= 2 && data.ticker.size() <= 10 && data.ticker.matches('^[A-Z0-9]+$')
+      && data.description is string && data.description.size() >= 1 && data.description.size() <= 280
+      && data.chain in ['solana', 'base', 'ethereum', 'polygon']
+      && data.emblemIcon in ['rocket', 'flame', 'zap', 'crown', 'gem', 'ghost', 'cat', 'dog']
+      && data.emblemColor is string && data.emblemColor.size() == 7 && data.emblemColor.matches('^#[0-9a-fA-F]{6}$')
+      && data.website is string && data.website.size() <= 120
+      && data.twitter is string && data.twitter.size() <= 64
+      && data.creatorUid is string && data.creatorUid.size() >= 1 && data.creatorUid.size() <= 128
+      && data.creatorHandle is string && data.creatorHandle.size() >= 2 && data.creatorHandle.size() <= 32
+      && data.virtualSol is number && data.virtualSol > 0 && data.virtualSol <= 1000000
+      && data.virtualTokens is number && data.virtualTokens > 0 && data.virtualTokens <= 2000000000
+      && data.realSol is number && data.realSol >= 0 && data.realSol <= 1000000
+      && data.totalSupply is number && data.totalSupply == 1000000000
+      && data.priceSol is number && data.priceSol > 0 && data.priceSol <= 1000
+      && data.marketCapSol is number && data.marketCapSol > 0 && data.marketCapSol <= 1000000000000
+      && data.volumeSol is number && data.volumeSol >= 0 && data.volumeSol <= 100000000
+      && data.tradeCount is number && data.tradeCount >= 0 && data.tradeCount <= 100000000
+      && data.graduated is bool
+      && (!('mode' in data) || data.mode in ['standard', 'mayhem'])
+      && (!('holderRewardPoolSol' in data) || (data.holderRewardPoolSol is number && data.holderRewardPoolSol >= 0 && data.holderRewardPoolSol <= 1000000))
+      && (!('creatorFeesSol' in data) || (data.creatorFeesSol is number && data.creatorFeesSol >= 0 && data.creatorFeesSol <= 1000000))
+      && (!('gasCollectedSol' in data) || (data.gasCollectedSol is number && data.gasCollectedSol >= 0 && data.gasCollectedSol <= 1000000))
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidCoinTrade(data, coinId, tradeId) {
+      return data.keys().hasAll([
+        'id',
+        'coinId',
+        'traderUid',
+        'traderHandle',
+        'side',
+        'solAmount',
+        'tokenAmount',
+        'priceSol',
+        'createdAt'
+      ])
+      && data.keys().hasOnly([
+        'id',
+        'coinId',
+        'traderUid',
+        'traderHandle',
+        'side',
+        'solAmount',
+        'tokenAmount',
+        'priceSol',
+        'gasSol',
+        'createdAt'
+      ])
+      && data.id is string && data.id == tradeId && data.id.size() <= 64
+      && data.coinId is string && data.coinId == coinId
+      && data.traderUid is string && data.traderUid == request.auth.uid
+      && data.traderHandle is string && data.traderHandle.size() >= 2 && data.traderHandle.size() <= 32
+      && data.side in ['buy', 'sell']
+      && data.solAmount is number && data.solAmount > 0 && data.solAmount <= 100000
+      && data.tokenAmount is number && data.tokenAmount > 0 && data.tokenAmount <= 1000000000
+      && data.priceSol is number && data.priceSol > 0 && data.priceSol <= 1000
+      && (!('gasSol' in data) || (data.gasSol is number && data.gasSol >= 0 && data.gasSol <= 10))
+      && data.createdAt is timestamp;
+    }
+
+    function isValidCoinComment(data, coinId, commentId) {
+      return data.keys().hasAll([
+        'id',
+        'coinId',
+        'authorUid',
+        'authorHandle',
+        'text',
+        'createdAt'
+      ])
+      && data.keys().hasOnly([
+        'id',
+        'coinId',
+        'authorUid',
+        'authorHandle',
+        'text',
+        'createdAt'
+      ])
+      && data.id is string && data.id == commentId && data.id.size() <= 64
+      && data.coinId is string && data.coinId == coinId
+      && data.authorUid is string && data.authorUid == request.auth.uid
+      && data.authorHandle is string && data.authorHandle.size() >= 2 && data.authorHandle.size() <= 32
+      && data.text is string && data.text.size() >= 1 && data.text.size() <= 280
+      && data.createdAt is timestamp;
+    }
+
+    function isValidAdminRecord(data, adminUid) {
+      return data.keys().hasAll(['uid', 'handle', 'role', 'grantedBy', 'createdAt'])
+      && data.keys().hasOnly(['uid', 'handle', 'role', 'grantedBy', 'createdAt'])
+      && data.uid is string && data.uid == adminUid
+      && data.handle is string && data.handle.size() >= 2 && data.handle.size() <= 32
+      && data.role in ['superadmin', 'moderator']
+      && data.grantedBy is string && data.grantedBy == request.auth.uid
+      && data.createdAt is timestamp;
+    }
+
+    function isValidAdminAuditLog(data, logId) {
+      return data.keys().hasAll(['id', 'actorUid', 'actorHandle', 'action', 'targetId', 'details', 'createdAt'])
+      && data.keys().hasOnly(['id', 'actorUid', 'actorHandle', 'action', 'targetId', 'details', 'createdAt'])
+      && data.id is string && data.id == logId && data.id.size() <= 64
+      && data.actorUid is string && data.actorUid == request.auth.uid
+      && data.actorHandle is string && data.actorHandle.size() >= 2 && data.actorHandle.size() <= 32
+      && data.action is string && data.action.size() >= 2 && data.action.size() <= 64
+      && data.targetId is string && data.targetId.size() >= 1 && data.targetId.size() <= 128
+      && data.details is string && data.details.size() >= 1 && data.details.size() <= 280
+      && data.createdAt is timestamp;
+    }
+
+    function isValidAdminWallet(data, walletId) {
+      return data.keys().hasAll([
+        'id',
+        'label',
+        'tier',
+        'origin',
+        'evmAddress',
+        'solanaAddress',
+        'assignedUid',
+        'assignedHandle',
+        'treasurySol',
+        'status',
+        'createdBy',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id',
+        'label',
+        'tier',
+        'origin',
+        'evmAddress',
+        'solanaAddress',
+        'assignedUid',
+        'assignedHandle',
+        'treasurySol',
+        'status',
+        'createdBy',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.id is string && data.id == walletId && data.id.size() <= 64
+      && data.label is string && data.label.size() >= 2 && data.label.size() <= 50
+      && data.tier in ['hot', 'cold', 'emergency']
+      && data.origin in ['created', 'imported']
+      && data.evmAddress is string && data.evmAddress.size() <= 64
+      && data.solanaAddress is string && data.solanaAddress.size() <= 64
+      && data.assignedUid is string && data.assignedUid.size() <= 128
+      && data.assignedHandle is string && data.assignedHandle.size() <= 32
+      && data.treasurySol is number && data.treasurySol >= 0 && data.treasurySol <= 10000000
+      && data.status in ['active', 'frozen']
+      && data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidEmergencyFund(data, fundId) {
+      return data.keys().hasAll([
+        'id',
+        'name',
+        'purpose',
+        'allocatedSol',
+        'disbursedSol',
+        'sourceWalletId',
+        'status',
+        'createdBy',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id',
+        'name',
+        'purpose',
+        'allocatedSol',
+        'disbursedSol',
+        'sourceWalletId',
+        'status',
+        'createdBy',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.id is string && data.id == fundId && data.id.size() <= 64
+      && data.name is string && data.name.size() >= 2 && data.name.size() <= 64
+      && data.purpose is string && data.purpose.size() >= 2 && data.purpose.size() <= 200
+      && data.allocatedSol is number && data.allocatedSol >= 0 && data.allocatedSol <= 10000000
+      && data.disbursedSol is number && data.disbursedSol >= 0 && data.disbursedSol <= 10000000
+      && data.sourceWalletId is string && data.sourceWalletId.size() <= 64
+      && data.status in ['standby', 'active', 'depleted']
+      && data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidPlatformEconomics(data, configId) {
+      return data.keys().hasAll([
+        'id',
+        'creationFeeSol',
+        'baseGasSol',
+        'priorityGasSol',
+        'protocolFeeBps',
+        'holderRewardBps',
+        'creatorFeeBps',
+        'congestionMultiplier',
+        'updatedBy',
+        'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id',
+        'creationFeeSol',
+        'baseGasSol',
+        'priorityGasSol',
+        'protocolFeeBps',
+        'holderRewardBps',
+        'creatorFeeBps',
+        'congestionMultiplier',
+        'updatedBy',
+        'updatedAt'
+      ])
+      && data.id is string && data.id == configId && data.id.size() <= 64
+      && data.creationFeeSol is number && data.creationFeeSol >= 0 && data.creationFeeSol <= 5
+      && data.baseGasSol is number && data.baseGasSol >= 0 && data.baseGasSol <= 1
+      && data.priorityGasSol is number && data.priorityGasSol >= 0 && data.priorityGasSol <= 1
+      && data.protocolFeeBps is number && data.protocolFeeBps >= 0 && data.protocolFeeBps <= 1000
+      && data.holderRewardBps is number && data.holderRewardBps >= 0 && data.holderRewardBps <= 1000
+      && data.creatorFeeBps is number && data.creatorFeeBps >= 0 && data.creatorFeeBps <= 1000
+      && data.congestionMultiplier is number && data.congestionMultiplier >= 0.5 && data.congestionMultiplier <= 10
+      && data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128
+      && data.updatedAt is timestamp;
+    }
+
+    // 1. Public User Profile + Owner-Scoped Holdings, Perps & Reward Claims
+    match /userProfiles/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn() && resource.data.uid is string;
+
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUserProfile(incoming(), userId)
+        && incoming().solBalance == 10.0
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            isAdmin()
+            && incoming().diff(existing()).affectedKeys().hasOnly(['handle', 'displayName', 'linkedWallet', 'solBalance', 'updatedAt'])
+          )
+          || (
+            request.auth.uid == userId
+            && (
+              incoming().diff(existing()).affectedKeys().hasOnly(['handle', 'displayName', 'linkedWallet', 'updatedAt'])
+              || (
+                incoming().diff(existing()).affectedKeys().hasOnly(['solBalance', 'updatedAt'])
+                && (incoming().solBalance - existing().solBalance) <= 10000.0
+              )
+            )
+          )
+        );
+
+      allow delete: if false;
+
+      match /holdings/{coinId} {
+        allow get: if isValidId(userId) && isValidId(coinId) && ((isSignedIn() && request.auth.uid == userId) || isAdmin());
+        allow list: if (isSignedIn() && request.auth.uid == userId && resource.data.ownerUid == request.auth.uid)
+          || (isAdmin() && resource.data.ownerUid is string);
+
+        allow create: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(coinId)
+          && request.auth.uid == userId
+          && isValidUserHolding(incoming(), userId, coinId)
+          && incoming().updatedAt == request.time
+          && existsAfter(/databases/$(database)/documents/memeCoins/$(coinId));
+
+        allow update: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(coinId)
+          && request.auth.uid == userId
+          && isValidUserHolding(incoming(), userId, coinId)
+          && incoming().coinId == existing().coinId
+          && incoming().ownerUid == existing().ownerUid
+          && incoming().ticker == existing().ticker
+          && incoming().name == existing().name
+          && incoming().emblemIcon == existing().emblemIcon
+          && incoming().emblemColor == existing().emblemColor
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['tokenBalance', 'avgBuyPriceSol', 'updatedAt']);
+
+        allow delete: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(coinId)
+          && (request.auth.uid == userId || isAdmin());
+      }
+
+      match /perpPositions/{posId} {
+        allow get: if isValidId(userId) && isValidId(posId) && ((isSignedIn() && request.auth.uid == userId) || isAdmin());
+        allow list: if (isSignedIn() && request.auth.uid == userId && resource.data.ownerUid == request.auth.uid)
+          || (isAdmin() && resource.data.ownerUid is string);
+
+        allow create: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(posId)
+          && request.auth.uid == userId
+          && isValidPerpPosition(incoming(), userId, posId)
+          && incoming().status == 'open'
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && exists(/databases/$(database)/documents/memeCoins/$(incoming().coinId));
+
+        allow update: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(posId)
+          && request.auth.uid == userId
+          && isValidPerpPosition(incoming(), userId, posId)
+          && incoming().id == existing().id
+          && incoming().ownerUid == existing().ownerUid
+          && incoming().coinId == existing().coinId
+          && incoming().createdAt == existing().createdAt
+          && existing().status == 'open'
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'realizedPnlSol', 'updatedAt']);
+
+        allow delete: if false;
+      }
+
+      match /rewardClaims/{claimId} {
+        allow get: if isValidId(userId) && isValidId(claimId) && ((isSignedIn() && request.auth.uid == userId) || isAdmin());
+        allow list: if (isSignedIn() && request.auth.uid == userId && resource.data.ownerUid == request.auth.uid)
+          || (isAdmin() && resource.data.ownerUid is string);
+
+        allow create: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(claimId)
+          && request.auth.uid == userId
+          && isValidRewardClaim(incoming(), userId, claimId)
+          && incoming().createdAt == request.time
+          && exists(/databases/$(database)/documents/memeCoins/$(incoming().coinId));
+
+        allow update, delete: if false;
+      }
+    }
+
+    // 2. Isolated User Private PII
+    match /userPrivate/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUserPrivate(incoming(), userId)
+        && incoming().createdAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUserPrivate(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['email']);
+
+      allow delete: if false;
+    }
+
+    // 3. Meme Coins & Pump.fun Bonding Curve Markets
+    match /memeCoins/{coinId} {
+      allow get: if isSignedIn() && isValidId(coinId);
+      allow list: if isSignedIn() && resource.data.totalSupply == 1000000000;
+
+      allow create: if isVerifiedUser()
+        && isValidId(coinId)
+        && isValidMemeCoin(incoming(), coinId)
+        && incoming().creatorUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(coinId)
+        && isValidMemeCoin(incoming(), coinId)
+        && incoming().id == existing().id
+        && incoming().name == existing().name
+        && incoming().ticker == existing().ticker
+        && incoming().chain == existing().chain
+        && incoming().emblemIcon == existing().emblemIcon
+        && incoming().emblemColor == existing().emblemColor
+        && incoming().creatorUid == existing().creatorUid
+        && incoming().creatorHandle == existing().creatorHandle
+        && incoming().totalSupply == existing().totalSupply
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'virtualSol',
+            'virtualTokens',
+            'realSol',
+            'priceSol',
+            'marketCapSol',
+            'volumeSol',
+            'tradeCount',
+            'graduated',
+            'holderRewardPoolSol',
+            'creatorFeesSol',
+            'gasCollectedSol',
+            'updatedAt'
+          ])
+          || (
+            existing().creatorUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'description',
+              'website',
+              'twitter',
+              'updatedAt'
+            ])
+          )
+          || (
+            isAdmin()
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'description',
+              'website',
+              'twitter',
+              'graduated',
+              'realSol',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isAdmin() && isValidId(coinId);
+
+      match /trades/{tradeId} {
+        allow get: if isSignedIn() && isValidId(coinId) && isValidId(tradeId);
+        allow list: if isSignedIn() && resource.data.coinId == coinId;
+
+        allow create: if isVerifiedUser()
+          && isValidId(coinId)
+          && isValidId(tradeId)
+          && isValidCoinTrade(incoming(), coinId, tradeId)
+          && incoming().createdAt == request.time
+          && existsAfter(/databases/$(database)/documents/memeCoins/$(coinId));
+
+        allow update, delete: if false;
+      }
+
+      match /comments/{commentId} {
+        allow get: if isSignedIn() && isValidId(coinId) && isValidId(commentId);
+        allow list: if isSignedIn() && resource.data.coinId == coinId;
+
+        allow create: if isVerifiedUser()
+          && isValidId(coinId)
+          && isValidId(commentId)
+          && isValidCoinComment(incoming(), coinId, commentId)
+          && incoming().createdAt == request.time
+          && exists(/databases/$(database)/documents/memeCoins/$(coinId));
+
+        allow update: if false;
+        allow delete: if isVerifiedUser()
+          && isValidId(coinId)
+          && isValidId(commentId)
+          && (existing().authorUid == request.auth.uid || isAdmin());
+      }
+    }
+
+    // 4. KingAdmin Trusted RBAC Directory
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && isValidId(adminUid) && (request.auth.uid == adminUid || isAdmin());
+      allow list: if isAdmin() && resource.data.uid is string;
+
+      allow create: if isAdmin()
+        && isValidId(adminUid)
+        && isValidAdminRecord(incoming(), adminUid)
+        && incoming().createdAt == request.time;
+
+      allow update: if false;
+
+      allow delete: if isAdmin()
+        && isValidId(adminUid)
+        && adminUid != request.auth.uid;
+    }
+
+    // 5. Immutable Admin Audit Logs
+    match /adminAuditLogs/{logId} {
+      allow get: if isAdmin() && isValidId(logId);
+      allow list: if isAdmin() && resource.data.actorUid is string;
+
+      allow create: if isAdmin()
+        && isValidId(logId)
+        && isValidAdminAuditLog(incoming(), logId)
+        && incoming().createdAt == request.time;
+
+      allow update, delete: if false;
+    }
+
+    // 6. Admin Hot, Cold & Emergency Wallets
+    match /adminWallets/{walletId} {
+      allow get: if isAdmin() && isValidId(walletId);
+      allow list: if isAdmin() && resource.data.id is string;
+
+      allow create: if isAdmin()
+        && isValidId(walletId)
+        && isValidAdminWallet(incoming(), walletId)
+        && incoming().createdBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isAdmin()
+        && isValidId(walletId)
+        && isValidAdminWallet(incoming(), walletId)
+        && incoming().id == existing().id
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'label',
+          'tier',
+          'assignedUid',
+          'assignedHandle',
+          'treasurySol',
+          'status',
+          'updatedAt'
+        ]);
+
+      allow delete: if isAdmin() && isValidId(walletId);
+    }
+
+    // 7. Admin Emergency Funds
+    match /emergencyFunds/{fundId} {
+      allow get: if isAdmin() && isValidId(fundId);
+      allow list: if isAdmin() && resource.data.id is string;
+
+      allow create: if isAdmin()
+        && isValidId(fundId)
+        && isValidEmergencyFund(incoming(), fundId)
+        && incoming().createdBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isAdmin()
+        && isValidId(fundId)
+        && isValidEmergencyFund(incoming(), fundId)
+        && incoming().id == existing().id
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'allocatedSol',
+          'disbursedSol',
+          'status',
+          'updatedAt'
+        ]);
+
+      allow delete: if isAdmin() && isValidId(fundId);
+    }
+
+    // 8. Platform Economics & Gas Fee Config
+    match /platformConfig/{configId} {
+      allow get: if isSignedIn() && isValidId(configId);
+      allow list: if false;
+
+      allow create, update: if isAdmin()
+        && isValidId(configId)
+        && isValidPlatformEconomics(incoming(), configId)
+        && incoming().updatedBy == request.auth.uid
+        && incoming().updatedAt == request.time;
+
+      allow delete: if false;
+    }
+  }
+}

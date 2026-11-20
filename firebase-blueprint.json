@@ -1,0 +1,292 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public trader and meme coin creator profile with bonding-curve SOL trading balance.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "handle": { "type": "string", "minLength": 2, "maxLength": 32, "pattern": "^[a-zA-Z0-9_]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 50 },
+        "linkedWallet": { "type": "string", "minLength": 0, "maxLength": 64 },
+        "solBalance": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "handle", "displayName", "linkedWallet", "solBalance", "createdAt", "updatedAt"]
+    },
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Isolated PII record containing the user's verified email.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "minLength": 3, "maxLength": 254 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "MemeCoin": {
+      "title": "MemeCoin",
+      "description": "Launched meme coin with constant-product bonding curve reserves, mayhem mode, and holder reward pools.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 32 },
+        "ticker": { "type": "string", "minLength": 2, "maxLength": 10, "pattern": "^[A-Z0-9]+$" },
+        "description": { "type": "string", "minLength": 1, "maxLength": 280 },
+        "chain": { "type": "string", "enum": ["solana", "base", "ethereum", "polygon"] },
+        "emblemIcon": { "type": "string", "enum": ["rocket", "flame", "zap", "crown", "gem", "ghost", "cat", "dog"] },
+        "emblemColor": { "type": "string", "minLength": 7, "maxLength": 7, "pattern": "^#[0-9a-fA-F]{6}$" },
+        "website": { "type": "string", "minLength": 0, "maxLength": 120 },
+        "twitter": { "type": "string", "minLength": 0, "maxLength": 64 },
+        "creatorUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "creatorHandle": { "type": "string", "minLength": 2, "maxLength": 32 },
+        "virtualSol": { "type": "number" },
+        "virtualTokens": { "type": "number" },
+        "realSol": { "type": "number" },
+        "totalSupply": { "type": "number" },
+        "priceSol": { "type": "number" },
+        "marketCapSol": { "type": "number" },
+        "volumeSol": { "type": "number" },
+        "tradeCount": { "type": "number" },
+        "graduated": { "type": "boolean" },
+        "mode": { "type": "string", "enum": ["standard", "mayhem"] },
+        "holderRewardPoolSol": { "type": "number" },
+        "creatorFeesSol": { "type": "number" },
+        "gasCollectedSol": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id", "name", "ticker", "description", "chain", "emblemIcon", "emblemColor",
+        "website", "twitter", "creatorUid", "creatorHandle", "virtualSol", "virtualTokens",
+        "realSol", "totalSupply", "priceSol", "marketCapSol", "volumeSol", "tradeCount",
+        "graduated", "createdAt", "updatedAt"
+      ]
+    },
+    "CoinTrade": {
+      "title": "CoinTrade",
+      "description": "Immutable bonding-curve buy or sell execution event with gas and fee breakdown.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "coinId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "traderUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "traderHandle": { "type": "string", "minLength": 2, "maxLength": 32 },
+        "side": { "type": "string", "enum": ["buy", "sell"] },
+        "solAmount": { "type": "number" },
+        "tokenAmount": { "type": "number" },
+        "priceSol": { "type": "number" },
+        "gasSol": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "coinId", "traderUid", "traderHandle", "side", "solAmount", "tokenAmount", "priceSol", "createdAt"]
+    },
+    "CoinComment": {
+      "title": "CoinComment",
+      "description": "Community thread comment on a launched meme coin.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "coinId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorHandle": { "type": "string", "minLength": 2, "maxLength": 32 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 280 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "coinId", "authorUid", "authorHandle", "text", "createdAt"]
+    },
+    "UserHolding": {
+      "title": "UserHolding",
+      "description": "User's token position for a specific meme coin.",
+      "type": "object",
+      "properties": {
+        "coinId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ticker": { "type": "string", "minLength": 2, "maxLength": 10 },
+        "name": { "type": "string", "minLength": 2, "maxLength": 32 },
+        "emblemIcon": { "type": "string", "enum": ["rocket", "flame", "zap", "crown", "gem", "ghost", "cat", "dog"] },
+        "emblemColor": { "type": "string", "minLength": 7, "maxLength": 7, "pattern": "^#[0-9a-fA-F]{6}$" },
+        "tokenBalance": { "type": "number" },
+        "avgBuyPriceSol": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["coinId", "ownerUid", "ticker", "name", "emblemIcon", "emblemColor", "tokenBalance", "avgBuyPriceSol", "updatedAt"]
+    },
+    "PerpPosition": {
+      "title": "PerpPosition",
+      "description": "Leveraged perpetual futures position tied to a coin's live bonding-curve mark price.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "coinId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ticker": { "type": "string", "minLength": 2, "maxLength": 10 },
+        "side": { "type": "string", "enum": ["long", "short"] },
+        "collateralSol": { "type": "number" },
+        "leverage": { "type": "number" },
+        "entryPriceSol": { "type": "number" },
+        "liquidationPriceSol": { "type": "number" },
+        "status": { "type": "string", "enum": ["open", "closed", "liquidated"] },
+        "realizedPnlSol": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "coinId", "ticker", "side", "collateralSol", "leverage", "entryPriceSol", "liquidationPriceSol", "status", "realizedPnlSol", "createdAt", "updatedAt"]
+    },
+    "RewardClaim": {
+      "title": "RewardClaim",
+      "description": "Claimed holder reward payout record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "coinId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ticker": { "type": "string", "minLength": 2, "maxLength": 10 },
+        "claimedSol": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "coinId", "ticker", "claimedSol", "createdAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Authorized administrator entry for KingAdmin RBAC.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "handle": { "type": "string", "minLength": 2, "maxLength": 32 },
+        "role": { "type": "string", "enum": ["superadmin", "moderator"] },
+        "grantedBy": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "handle", "role", "grantedBy", "createdAt"]
+    },
+    "AdminAuditLog": {
+      "title": "AdminAuditLog",
+      "description": "Immutable administrative audit log entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorHandle": { "type": "string", "minLength": 2, "maxLength": 32 },
+        "action": { "type": "string", "minLength": 2, "maxLength": 64 },
+        "targetId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "details": { "type": "string", "minLength": 1, "maxLength": 280 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "actorUid", "actorHandle", "action", "targetId", "details", "createdAt"]
+    },
+    "AdminWallet": {
+      "title": "AdminWallet",
+      "description": "Admin-managed hot, cold, or emergency wallet public record and user assignment.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "label": { "type": "string", "minLength": 2, "maxLength": 50 },
+        "tier": { "type": "string", "enum": ["hot", "cold", "emergency"] },
+        "origin": { "type": "string", "enum": ["created", "imported"] },
+        "evmAddress": { "type": "string", "minLength": 0, "maxLength": 64 },
+        "solanaAddress": { "type": "string", "minLength": 0, "maxLength": 64 },
+        "assignedUid": { "type": "string", "minLength": 0, "maxLength": 128 },
+        "assignedHandle": { "type": "string", "minLength": 0, "maxLength": 32 },
+        "treasurySol": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "frozen"] },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "label", "tier", "origin", "evmAddress", "solanaAddress", "assignedUid", "assignedHandle", "treasurySol", "status", "createdBy", "createdAt", "updatedAt"]
+    },
+    "EmergencyFund": {
+      "title": "EmergencyFund",
+      "description": "Admin-managed emergency liquidity reserve and disbursement vault.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 64 },
+        "purpose": { "type": "string", "minLength": 2, "maxLength": 200 },
+        "allocatedSol": { "type": "number" },
+        "disbursedSol": { "type": "number" },
+        "sourceWalletId": { "type": "string", "minLength": 0, "maxLength": 64 },
+        "status": { "type": "string", "enum": ["standby", "active", "depleted"] },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "purpose", "allocatedSol", "disbursedSol", "sourceWalletId", "status", "createdBy", "createdAt", "updatedAt"]
+    },
+    "PlatformEconomics": {
+      "title": "PlatformEconomics",
+      "description": "Protocol-wide gas fee, swap fee split, and bonding-curve parameter configuration.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "creationFeeSol": { "type": "number" },
+        "baseGasSol": { "type": "number" },
+        "priorityGasSol": { "type": "number" },
+        "protocolFeeBps": { "type": "number" },
+        "holderRewardBps": { "type": "number" },
+        "creatorFeeBps": { "type": "number" },
+        "congestionMultiplier": { "type": "number" },
+        "updatedBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "creationFeeSol", "baseGasSol", "priorityGasSol", "protocolFeeBps", "holderRewardBps", "creatorFeeBps", "congestionMultiplier", "updatedBy", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/userProfiles/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public trader profile and SOL trading balance."
+    },
+    "/userPrivate/{userId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Private PII record isolated to account owner."
+    },
+    "/userProfiles/{userId}/holdings/{coinId}": {
+      "schema": { "$ref": "#/entities/UserHolding" },
+      "description": "Per-user meme coin position ledger."
+    },
+    "/userProfiles/{userId}/perpPositions/{posId}": {
+      "schema": { "$ref": "#/entities/PerpPosition" },
+      "description": "User's perpetual futures positions."
+    },
+    "/userProfiles/{userId}/rewardClaims/{claimId}": {
+      "schema": { "$ref": "#/entities/RewardClaim" },
+      "description": "User's holder reward claim receipts."
+    },
+    "/memeCoins/{coinId}": {
+      "schema": { "$ref": "#/entities/MemeCoin" },
+      "description": "Launched meme coins with constant-product bonding curve reserves."
+    },
+    "/memeCoins/{coinId}/trades/{tradeId}": {
+      "schema": { "$ref": "#/entities/CoinTrade" },
+      "description": "Immutable bonding-curve trade history for a coin."
+    },
+    "/memeCoins/{coinId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/CoinComment" },
+      "description": "Community comments on a coin's trading page."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Trusted administrator role grants for KingAdmin RBAC."
+    },
+    "/adminAuditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AdminAuditLog" },
+      "description": "Immutable audit trail of KingAdmin operations."
+    },
+    "/adminWallets/{walletId}": {
+      "schema": { "$ref": "#/entities/AdminWallet" },
+      "description": "Admin hot, cold, and emergency wallets and assignments."
+    },
+    "/emergencyFunds/{fundId}": {
+      "schema": { "$ref": "#/entities/EmergencyFund" },
+      "description": "Emergency reserve pools managed by KingAdmin."
+    },
+    "/platformConfig/{configId}": {
+      "schema": { "$ref": "#/entities/PlatformEconomics" },
+      "description": "Global gas fee and fee-split economics configuration."
+    }
+  }
+}

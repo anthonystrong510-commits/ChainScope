@@ -1,0 +1,8 @@
+{
+  "name": "ChainScope",
+  "description": "Multi-chain Web3 wallet dashboard with real-time Ethereum, Polygon, L2, and Solana balance scanning, cross-chain transaction ledger, creative wallet importing, and manual 12/24-word BIP-39 seed phrase studio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
