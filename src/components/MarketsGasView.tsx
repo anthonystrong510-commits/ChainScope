@@ -15,6 +15,7 @@ import {
 import type { ChainId, WalletEntry, WalletScanState } from '../types/wallet';
 import { formatUsd, truncateAddress } from '../utils/chains';
 import { ChainIcon } from './ChainIcon';
+import { signCustomMessageWithWallet } from '../services/scanner';
 
 interface NetworkGasRow {
   chainId: ChainId;
@@ -205,32 +206,7 @@ export function MarketsGasView({
     setSigningBusy(true);
     setSignError(null);
     try {
-      let sig: string | undefined;
-      if (target.origin === 'browser-solana' && target.solanaAddress) {
-        const sol = window.phantom?.solana || window.solflare || window.solana;
-        if (!sol?.signMessage) {
-          throw new Error('Solana browser wallet does not expose signMessage.');
-        }
-        const bytes = new TextEncoder().encode(signMessageText);
-        const signed = await sol.signMessage(bytes, 'utf8');
-        if (signed?.signature) {
-          sig = Array.from(signed.signature)
-            .map((b) => b.toString(16).padStart(2, '0'))
-            .join('');
-        }
-      } else if (target.evmAddress && window.ethereum) {
-        const hexMsg = ethers.hexlify(ethers.toUtf8Bytes(signMessageText));
-        const res = await window.ethereum.request({
-          method: 'personal_sign',
-          params: [hexMsg, target.evmAddress],
-        });
-        if (typeof res === 'string') {
-          sig = res;
-        }
-      }
-      if (!sig) {
-        throw new Error('Wallet provider did not return a signature.');
-      }
+      const sig = await signCustomMessageWithWallet(target, signMessageText);
       setSignedOutput(sig);
       if (target.origin !== 'browser-solana') {
         setVerifyMsg(signMessageText);

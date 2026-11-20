@@ -36,10 +36,12 @@ import {
   connectEvmProvider,
   connectInjectedEvmWallet,
   connectInjectedSolanaWallet,
+  connectPhantomWallet,
   connectSolanaProvider,
   detectDeviceEnvironment,
   detectInjectedProviders,
   getMobileWalletDeepLinks,
+  getPhantomProviders,
   resolveEnsName,
   scanEvmAddress,
   scanSolanaAddress,
@@ -101,7 +103,14 @@ export function ImportConnectView({ onImportWallet }: ImportConnectViewProps) {
     setDetectedWallets(collectDetectedWalletsSync());
     const unsub = subscribeEip6963Wallets((discovered) => {
       setDetectedWallets((prev) => {
-        if (prev.some((w) => w.id === discovered.id || (w.name === discovered.name && w.family === discovered.family))) {
+        const norm = (s: string) => s.trim().toLowerCase().replace(/\s*\((evm|solana)\)\s*$/i, '');
+        if (
+          prev.some(
+            (w) =>
+              w.id === discovered.id ||
+              (w.family === discovered.family && norm(w.name) === norm(discovered.name))
+          )
+        ) {
           return prev;
         }
         return [discovered, ...prev];
@@ -287,10 +296,39 @@ export function ImportConnectView({ onImportWallet }: ImportConnectViewProps) {
   };
 
   // --- Mode 3: Browser & Mobile Wallets ---
+  const phantomDetected = useMemo(() => {
+    const p = getPhantomProviders();
+    return Boolean(p.solana || p.evm);
+  }, [detectedWallets]);
+
   const handleRescanBrowserWallets = () => {
     setDetectedWallets(collectDetectedWalletsSync());
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('eip6963:requestProvider'));
+      window.dispatchEvent(new CustomEvent('wallet-standard:app-ready'));
+      window.setTimeout(() => {
+        setDetectedWallets(collectDetectedWalletsSync());
+      }, 250);
+    }
+  };
+
+  const handleConnectPhantom = async () => {
+    setBrowserBusy('phantom');
+    setBrowserError(null);
+    try {
+      const res = await connectPhantomWallet();
+      onImportWallet({
+        id: `phantom-${Date.now()}`,
+        label: res.providerLabel,
+        origin: res.solanaAddress ? 'browser-solana' : 'browser-evm',
+        solanaAddress: res.solanaAddress,
+        evmAddress: res.evmAddress ? ethers.getAddress(res.evmAddress) : undefined,
+        createdAt: Date.now(),
+      });
+    } catch (err) {
+      setBrowserError(err instanceof Error ? err.message : 'Failed to connect Phantom Wallet');
+    } finally {
+      setBrowserBusy(null);
     }
   };
 
@@ -883,6 +921,45 @@ export function ImportConnectView({ onImportWallet }: ImportConnectViewProps) {
                 <RefreshCw className="w-3.5 h-3.5" />
                 Detect Wallets
               </button>
+            </div>
+
+            {/* Featured Phantom Multi-Chain Connector (Solana + EVM without MetaMask interference) */}
+            <div className="p-4 rounded-xl border border-violet-500/30 bg-violet-500/5 flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+                  Phantom Wallet (Solana + EVM)
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  {phantomDetected
+                    ? 'Phantom provider detected — connects Solana and EVM directly without triggering MetaMask.'
+                    : 'Using Phantom mobile or don’t see the extension? Connect if installed or open directly in Phantom App.'}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  disabled={browserBusy !== null}
+                  onClick={() => void handleConnectPhantom()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-xs font-medium whitespace-nowrap transition-colors"
+                >
+                  {browserBusy === 'phantom' ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <PlugZap className="w-3.5 h-3.5" />
+                  )}
+                  Connect Phantom
+                </button>
+                {!phantomDetected && mobileDeepLinks[0] && (
+                  <a
+                    href={mobileDeepLinks[0].href}
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap"
+                  >
+                    Open Phantom App
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
             </div>
 
             {detectedWallets.length > 0 ? (

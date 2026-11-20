@@ -190,6 +190,7 @@ export function DepositToPlatformModal({
           address: activeOption.address,
           amount: amountNum,
           symbol: activeOption.symbol,
+          walletLabel: selectedWallet.label,
         });
       }
 
