@@ -83,4 +83,10 @@ export interface WalletScanState {
   error?: string;
 }
 
-export type ActiveTab = 'portfolio' | 'transactions' | 'launchpad' | 'import' | 'seed-studio';
+export type ActiveTab =
+  | 'portfolio'
+  | 'transactions'
+  | 'launchpad'
+  | 'markets'
+  | 'import'
+  | 'seed-studio';

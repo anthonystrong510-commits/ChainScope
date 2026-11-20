@@ -757,6 +757,152 @@ async function startServer() {
     }
   });
 
+  app.get('/api/gas-tracker', async (_req, res) => {
+    try {
+      const { prices, source } = await getLivePrices();
+      const evmKeys: EvmChainKey[] = ['ethereum', 'polygon', 'arbitrum', 'base', 'optimism', 'bsc'];
+
+      const evmPromises = evmKeys.map(async (key) => {
+        const cfg = EVM_CHAINS[key];
+        const started = Date.now();
+        const nativeUsd = prices[cfg.priceId]?.usd || 0;
+        try {
+          const { result, rpcUrl } = await callJsonRpc(cfg.rpcs, [
+            { jsonrpc: '2.0', id: 1, method: 'eth_gasPrice', params: [] },
+            { jsonrpc: '2.0', id: 2, method: 'eth_blockNumber', params: [] },
+          ]);
+          const arr = Array.isArray(result) ? (result as Array<{ id: number; result?: string }>) : [];
+          const gasHex = arr.find((x) => x.id === 1)?.result || '0x0';
+          const blkHex = arr.find((x) => x.id === 2)?.result || '0x0';
+          const gasWei = BigInt(gasHex);
+          const gwei = Number(ethers.formatUnits(gasWei, 'gwei'));
+          const blockNumber = parseInt(blkHex, 16) || 0;
+
+          const costForGas = (units: number) => {
+            const nativeCost = Number(ethers.formatEther(gasWei * BigInt(units)));
+            return {
+              native: nativeCost,
+              usd: nativeCost * nativeUsd,
+            };
+          };
+
+          const tx21k = costForGas(21_000);
+          const erc20 = costForGas(65_000);
+          const swap = costForGas(150_000);
+
+          return {
+            chainId: cfg.id,
+            name: cfg.name,
+            symbol: cfg.symbol,
+            status: 'ok' as const,
+            blockNumber,
+            gasUnitLabel: 'Gwei',
+            standardFeeValue: gwei,
+            fastFeeValue: gwei * 1.2,
+            nativeUsdPrice: nativeUsd,
+            transferNative: tx21k.native,
+            transferUsd: tx21k.usd,
+            tokenTransferUsd: erc20.usd,
+            swapUsd: swap.usd,
+            latencyMs: Date.now() - started,
+            rpcSource: new URL(rpcUrl).hostname,
+          };
+        } catch (err) {
+          return {
+            chainId: cfg.id,
+            name: cfg.name,
+            symbol: cfg.symbol,
+            status: 'error' as const,
+            blockNumber: 0,
+            gasUnitLabel: 'Gwei',
+            standardFeeValue: 0,
+            fastFeeValue: 0,
+            nativeUsdPrice: nativeUsd,
+            transferNative: 0,
+            transferUsd: 0,
+            tokenTransferUsd: 0,
+            swapUsd: 0,
+            latencyMs: Date.now() - started,
+            rpcSource: 'unavailable',
+            error: err instanceof Error ? err.message : 'RPC unavailable',
+          };
+        }
+      });
+
+      const solanaPromise = (async () => {
+        const started = Date.now();
+        const solUsd = prices['solana']?.usd || 0;
+        try {
+          const [{ result: slotRes, rpcUrl }, { result: feesRes }] = await Promise.all([
+            callJsonRpc(SOLANA_RPCS, { jsonrpc: '2.0', id: 1, method: 'getSlot', params: [] }),
+            callJsonRpc(SOLANA_RPCS, { jsonrpc: '2.0', id: 2, method: 'getRecentPrioritizationFees', params: [] }),
+          ]);
+          const slot = typeof slotRes === 'number' ? slotRes : 0;
+          const feeArr = Array.isArray(feesRes)
+            ? (feesRes as Array<{ prioritizationFee?: number }>)
+            : [];
+          const nonZero = feeArr
+            .map((f) => Number(f.prioritizationFee || 0))
+            .filter((n) => n >= 0)
+            .sort((a, b) => a - b);
+          const medianMicroLamports =
+            nonZero.length > 0 ? nonZero[Math.floor(nonZero.length / 2)] : 1_000;
+          const baseLamports = 5_000;
+          const priorityLamports = Math.round((medianMicroLamports * 200_000) / 1_000_000);
+          const transferSol = baseLamports / 1_000_000_000;
+          const swapSol = (baseLamports + Math.max(priorityLamports, 5_000)) / 1_000_000_000;
+
+          return {
+            chainId: 'solana' as const,
+            name: 'Solana',
+            symbol: 'SOL',
+            status: 'ok' as const,
+            blockNumber: slot,
+            gasUnitLabel: 'μLamports/CU',
+            standardFeeValue: medianMicroLamports,
+            fastFeeValue: Math.max(medianMicroLamports * 2, 10_000),
+            nativeUsdPrice: solUsd,
+            transferNative: transferSol,
+            transferUsd: transferSol * solUsd,
+            tokenTransferUsd: (baseLamports * 1.4 / 1_000_000_000) * solUsd,
+            swapUsd: swapSol * solUsd,
+            latencyMs: Date.now() - started,
+            rpcSource: new URL(rpcUrl).hostname,
+          };
+        } catch (err) {
+          return {
+            chainId: 'solana' as const,
+            name: 'Solana',
+            symbol: 'SOL',
+            status: 'error' as const,
+            blockNumber: 0,
+            gasUnitLabel: 'μLamports/CU',
+            standardFeeValue: 0,
+            fastFeeValue: 0,
+            nativeUsdPrice: solUsd,
+            transferNative: 0,
+            transferUsd: 0,
+            tokenTransferUsd: 0,
+            swapUsd: 0,
+            latencyMs: Date.now() - started,
+            rpcSource: 'unavailable',
+            error: err instanceof Error ? err.message : 'Solana RPC unavailable',
+          };
+        }
+      })();
+
+      const networks = await Promise.all([...evmPromises, solanaPromise]);
+      res.json({
+        fetchedAt: Date.now(),
+        priceSource: source,
+        prices,
+        networks,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to load gas metrics' });
+    }
+  });
+
   app.post('/api/scan/evm', async (req, res) => {
     const { address, chains } = (req.body || {}) as { address?: string; chains?: EvmChainKey[] };
     if (!address || !ethers.isAddress(address)) {

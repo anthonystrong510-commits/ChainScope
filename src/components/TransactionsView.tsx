@@ -3,6 +3,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   CheckCircle2,
+  Download,
   ExternalLink,
   RefreshCw,
   Repeat,
@@ -90,15 +91,62 @@ export function TransactionsView({
             Solana mainnet explorers and RPCs.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onScanActive}
-          disabled={isScanning}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-medium whitespace-nowrap transition-colors"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
-          {isScanning ? 'Syncing Ledger…' : 'Refresh Ledger'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (transactions.length === 0) return;
+              const header = [
+                'Timestamp',
+                'Network',
+                'Wallet',
+                'Direction',
+                'Amount',
+                'Symbol',
+                'Fee',
+                'Status',
+                'From',
+                'To',
+                'Hash',
+              ];
+              const rows = transactions.map((tx) => [
+                new Date(tx.timestamp).toISOString(),
+                CHAIN_META[tx.chainId].name,
+                `"${(tx.walletLabel || '').replace(/"/g, '""')}"`,
+                tx.direction,
+                tx.valueFormatted,
+                tx.symbol,
+                tx.feeFormatted,
+                tx.status,
+                tx.from,
+                tx.to,
+                tx.hash,
+              ]);
+              const csv = [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `chainscope-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            disabled={transactions.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-xs font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Download CSV
+          </button>
+          <button
+            type="button"
+            onClick={onScanActive}
+            disabled={isScanning}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-medium whitespace-nowrap transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
+            {isScanning ? 'Syncing Ledger…' : 'Refresh Ledger'}
+          </button>
+        </div>
       </div>
 
       {/* Filter Bar */}

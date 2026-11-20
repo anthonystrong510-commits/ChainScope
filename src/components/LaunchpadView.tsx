@@ -27,6 +27,7 @@ import {
   Search,
   Send,
   Settings2,
+  Star,
   Trash2,
   TrendingUp,
   Trophy,
@@ -61,9 +62,12 @@ import {
   deleteCoinComment,
   executeBondingCurveSwap,
   fetchCoinDetail,
+  fetchLaunchpadActivity,
   fetchLaunchpadOverview,
   launchMemeCoin,
   postCoinComment,
+  transferPlatformSol,
+  type LaunchpadActivityItem,
 } from '../services/launchpad';
 import { CoinEmblem } from './CoinEmblem';
 import { BondingCurveChart } from './BondingCurveChart';
@@ -156,6 +160,7 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
   const [solUsdPrice, setSolUsdPrice] = useState<number>(0);
   const [coins, setCoins] = useState<MemeCoin[]>([]);
   const [traders, setTraders] = useState<UserProfile[]>([]);
+  const [activityFeed, setActivityFeed] = useState<LaunchpadActivityItem[]>([]);
   const [loadingCoins, setLoadingCoins] = useState(false);
   const [overviewError, setOverviewError] = useState<string | null>(null);
 
@@ -166,11 +171,26 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
   const [modeFilter, setModeFilter] = useState<'all' | CoinMode>('all');
   const [sortBy, setSortBy] = useState<'trending' | 'mcap' | 'newest' | 'graduating'>('trending');
   const [onlyMyHoldings, setOnlyMyHoldings] = useState(false);
+  const [onlyStarred, setOnlyStarred] = useState(false);
+  const [starredIds, setStarredIds] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('chainscope_starred_coins_v1');
+      return raw ? (JSON.parse(raw) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferHandle, setTransferHandle] = useState('');
+  const [transferAmount, setTransferAmount] = useState('0.5');
+  const [transferMemo, setTransferMemo] = useState('');
+  const [transferBusy, setTransferBusy] = useState(false);
+  const [transferFeedback, setTransferFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [copiedLoginUrl, setCopiedLoginUrl] = useState(false);
 
   // Create Coin Form State
@@ -240,9 +260,13 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
     if (!user) return;
     if (showSpinner) setLoadingCoins(true);
     try {
-      const data = await fetchLaunchpadOverview();
+      const [data, act] = await Promise.all([
+        fetchLaunchpadOverview(),
+        fetchLaunchpadActivity().catch(() => ({ activity: [] })),
+      ]);
       setCoins(data.coins);
       setTraders(data.traders);
+      setActivityFeed(act.activity);
       setOverviewError(null);
     } catch (err) {
       setOverviewError(
@@ -335,12 +359,29 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
     [coins]
   );
 
+  const starredSet = useMemo(() => new Set(starredIds), [starredIds]);
+
+  const toggleStarCoin = (coinId: string) => {
+    setStarredIds((prev) => {
+      const next = prev.includes(coinId)
+        ? prev.filter((id) => id !== coinId)
+        : [coinId, ...prev];
+      try {
+        localStorage.setItem('chainscope_starred_coins_v1', JSON.stringify(next));
+      } catch {
+        // ignore quota errors
+      }
+      return next;
+    });
+  };
+
   const filteredCoins = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const list = coins
       .filter((c) => (chainFilter === 'all' ? true : c.chain === chainFilter))
       .filter((c) => (modeFilter === 'all' ? true : (c.mode || 'standard') === modeFilter))
       .filter((c) => (!onlyMyHoldings ? true : holdingCoinIds.has(c.id)))
+      .filter((c) => (!onlyStarred ? true : starredSet.has(c.id)))
       .filter((c) => {
         if (!q) return true;
         return (
@@ -357,7 +398,7 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
       if (sortBy === 'graduating') return b.realSol - a.realSol;
       return b.volumeSol - a.volumeSol || b.tradeCount - a.tradeCount;
     });
-  }, [coins, chainFilter, modeFilter, onlyMyHoldings, holdingCoinIds, searchQuery, sortBy]);
+  }, [coins, chainFilter, modeFilter, onlyMyHoldings, onlyStarred, starredSet, holdingCoinIds, searchQuery, sortBy]);
 
   // Live quote preview for swap form
   const swapQuote = useMemo(() => {
@@ -666,43 +707,57 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
             : 'border-slate-200 dark:border-slate-800 hover:border-blue-500/60'
         }`}
       >
-        <button
-          type="button"
-          onClick={() => {
-            setSelectedCoinId(coin.id);
-            setSwapFeedback(null);
-          }}
-          className="text-left space-y-3 w-full"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <CoinEmblem icon={coin.emblemIcon} color={coin.emblemColor} size="md" />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
-                    {coin.name}
-                  </span>
-                  <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400 shrink-0">
-                    ${coin.ticker}
-                  </span>
-                  {mode === 'mayhem' && (
-                    <span className="text-[11px] font-semibold text-orange-500">· Mayhem</span>
-                  )}
-                </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                  {CHAIN_LABELS[coin.chain]} · @{coin.creatorHandle} ·{' '}
-                  {formatTimestamp(toMillis(coin.createdAt))}
+        <div className="flex items-start justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedCoinId(coin.id);
+              setSwapFeedback(null);
+            }}
+            className="text-left space-y-2.5 flex-1 min-w-0"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <CoinEmblem icon={coin.emblemIcon} color={coin.emblemColor} size="md" />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                      {coin.name}
+                    </span>
+                    <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400 shrink-0">
+                      ${coin.ticker}
+                    </span>
+                    {mode === 'mayhem' && (
+                      <span className="text-[11px] font-semibold text-orange-500">· Mayhem</span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                    {CHAIN_LABELS[coin.chain]} · @{coin.creatorHandle} ·{' '}
+                    {formatTimestamp(toMillis(coin.createdAt))}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <ArrowUpRight className="w-4 h-4 text-slate-400 shrink-0" />
-          </div>
+            <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+              {coin.description}
+            </p>
+          </button>
 
-          <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
-            {coin.description}
-          </p>
-        </button>
+          <button
+            type="button"
+            onClick={() => toggleStarCoin(coin.id)}
+            title={starredSet.has(coin.id) ? 'Remove from watchlist' : 'Star to watchlist'}
+            aria-label={starredSet.has(coin.id) ? 'Remove from watchlist' : 'Star to watchlist'}
+            className={`p-1.5 rounded-lg transition-colors shrink-0 ${
+              starredSet.has(coin.id)
+                ? 'text-amber-500 bg-amber-500/10'
+                : 'text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Star className={`w-4 h-4 ${starredSet.has(coin.id) ? 'fill-amber-500' : ''}`} />
+          </button>
+        </div>
 
         <div className="space-y-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
           <div className="flex items-center justify-between text-xs tabular-nums">
@@ -942,6 +997,20 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
           >
             <ArrowDownToLine className="w-3.5 h-3.5" />
             Add Coins from Wallet
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setTransferFeedback(null);
+              setShowTransferModal(true);
+            }}
+            disabled={!profile}
+            title="Send SOL from your platform trading balance to another trader @handle"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-xs font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap transition-colors"
+          >
+            <Send className="w-3.5 h-3.5 text-blue-500" />
+            Send SOL
           </button>
 
           <button
@@ -1724,6 +1793,58 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
                   </div>
                 </div>
               )}
+
+              {activityFeed.length > 0 && (
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      Live Cross-Market Order Tape
+                    </h3>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                      Latest {activityFeed.length} trades
+                    </span>
+                  </div>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800/80 max-h-72 overflow-y-auto">
+                    {activityFeed.slice(0, 15).map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setSelectedCoinId(item.coinId)}
+                        className="w-full px-4 py-2.5 flex items-center justify-between gap-3 text-left text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <CoinEmblem
+                            icon={item.emblemIcon}
+                            color={item.emblemColor}
+                            size="sm"
+                          />
+                          <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
+                            @{item.traderHandle}
+                          </span>
+                          <span
+                            className={`font-semibold uppercase ${
+                              item.side === 'buy' ? 'text-emerald-500' : 'text-red-500'
+                            }`}
+                          >
+                            {item.side === 'buy' ? 'bought' : 'sold'}
+                          </span>
+                          <span className="font-mono font-semibold text-blue-600 dark:text-blue-400 truncate">
+                            ${item.coinTicker}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0 font-mono tabular-nums">
+                          <span className="text-slate-900 dark:text-slate-100 font-medium">
+                            {item.solAmount.toFixed(3)} SOL
+                          </span>
+                          <span className="text-slate-400 text-[11px] hidden sm:inline">
+                            {formatTimestamp(toMillis(item.createdAt))}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1767,6 +1888,16 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
                       className="rounded border-slate-300 dark:border-slate-700 text-blue-600"
                     />
                     My Holdings
+                  </label>
+
+                  <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={onlyStarred}
+                      onChange={(e) => setOnlyStarred(e.target.checked)}
+                      className="rounded border-slate-300 dark:border-slate-700 text-amber-500"
+                    />
+                    Starred ({starredIds.length})
                   </label>
 
                   <select
@@ -2445,6 +2576,128 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
           }
           onSuccess={() => refreshAll()}
         />
+      )}
+
+      {showTransferModal && profile && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                Send SOL to Trader Handle
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowTransferModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setTransferBusy(true);
+                setTransferFeedback(null);
+                try {
+                  const res = await transferPlatformSol({
+                    recipientHandle: transferHandle,
+                    amountSol: Number(transferAmount),
+                    memo: transferMemo,
+                  });
+                  await refreshAll();
+                  setTransferFeedback({
+                    type: 'ok',
+                    text: `Sent ${res.amountSol.toFixed(4)} SOL to @${res.recipientHandle}.`,
+                  });
+                  setTransferHandle('');
+                  setTransferMemo('');
+                } catch (err) {
+                  setTransferFeedback({
+                    type: 'err',
+                    text: err instanceof Error ? err.message : 'Transfer failed',
+                  });
+                } finally {
+                  setTransferBusy(false);
+                }
+              }}
+              className="p-5 space-y-4 text-xs"
+            >
+              <div className="p-3 rounded-lg bg-slate-50 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-slate-500">Available Platform Liquidity</span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-slate-100 tabular-nums">
+                  {profile.solBalance.toFixed(4)} SOL
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-slate-500 mb-1">Recipient @handle</label>
+                <input
+                  type="text"
+                  required
+                  value={transferHandle}
+                  onChange={(e) => setTransferHandle(e.target.value)}
+                  placeholder="@traderhandle"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-500 mb-1">Amount (SOL)</label>
+                <input
+                  type="number"
+                  required
+                  min="0.001"
+                  step="any"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] font-mono tabular-nums text-slate-900 dark:text-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-500 mb-1">Memo (optional)</label>
+                <input
+                  type="text"
+                  maxLength={120}
+                  value={transferMemo}
+                  onChange={(e) => setTransferMemo(e.target.value)}
+                  placeholder="Optional note…"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100"
+                />
+              </div>
+
+              {transferFeedback && (
+                <div
+                  className={`p-2.5 rounded-lg ${
+                    transferFeedback.type === 'ok'
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                      : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30'
+                  }`}
+                >
+                  {transferFeedback.text}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowTransferModal(false)}
+                  className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 font-medium"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={transferBusy}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium inline-flex items-center gap-1.5"
+                >
+                  {transferBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  {transferBusy ? 'Sending…' : 'Send SOL'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

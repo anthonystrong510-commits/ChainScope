@@ -1,6 +1,7 @@
 import {
   Activity,
   Crown,
+  Fuel,
   KeyRound,
   Layers,
   Moon,
@@ -79,6 +80,7 @@ export function Sidebar({
     { id: 'portfolio', label: 'Portfolio & Scanner', icon: Layers },
     { id: 'transactions', label: 'Transaction Ledger', icon: Activity },
     { id: 'launchpad', label: 'Meme Launchpad', icon: Rocket },
+    { id: 'markets', label: 'Gas & Markets', icon: Fuel },
     { id: 'import', label: 'Import & Connect', icon: Plus },
     { id: 'seed-studio', label: 'Seed Phrase Studio', icon: KeyRound },
   ];

@@ -5,6 +5,7 @@ import {
   Check,
   Coins,
   Copy,
+  Download,
   ExternalLink,
   Loader2,
   QrCode,
@@ -222,6 +223,29 @@ export function PortfolioView({
     await navigator.clipboard.writeText(addr);
     setCopiedAddr(addr);
     setTimeout(() => setCopiedAddr(null), 1500);
+  };
+
+  const handleExportHoldingsCsv = () => {
+    if (allHoldings.length === 0) return;
+    const header = ['Wallet', 'Network', 'Asset', 'Symbol', 'Balance', 'Spot USD', '24h %', 'Value USD'];
+    const rows = allHoldings.map((h) => [
+      `"${h.walletLabel.replace(/"/g, '""')}"`,
+      CHAIN_META[h.chainId].name,
+      `"${h.name.replace(/"/g, '""')}"`,
+      h.symbol,
+      h.balance.toString(),
+      h.usdPrice.toString(),
+      (Number.isFinite(h.change24h) ? h.change24h : 0).toFixed(2),
+      h.usdValue.toFixed(2),
+    ]);
+    const csv = [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chainscope-holdings-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (wallets.length === 0) {
@@ -583,6 +607,16 @@ export function PortfolioView({
                 className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
               />
             </div>
+
+            <button
+              type="button"
+              onClick={handleExportHoldingsCsv}
+              disabled={allHoldings.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-xs font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap shrink-0 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download CSV
+            </button>
           </div>
         </div>
 

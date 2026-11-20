@@ -14,6 +14,7 @@ import { KingAdminView } from './components/KingAdminView';
 import { ReceiveModal } from './components/ReceiveModal';
 import { OfflineIndicator, PWAInstallButton } from './components/PWAInstallButton';
 import { DepositToPlatformModal } from './components/DepositToPlatformModal';
+import { MarketsGasView } from './components/MarketsGasView';
 
 const STORAGE_KEY = 'chainscope_wallets_v1';
 
@@ -218,6 +219,8 @@ function ChainScopeShell() {
         return 'Transaction Ledger';
       case 'launchpad':
         return 'Meme Coin Launchpad';
+      case 'markets':
+        return 'Gas & Market Tools';
       case 'import':
         return 'Import & Connect';
       case 'seed-studio':
@@ -370,6 +373,14 @@ function ChainScopeShell() {
               wallets={wallets}
               scanStates={scanStates}
               onOpenConnect={() => setActiveTab('import')}
+            />
+          )}
+
+          {activeTab === 'markets' && (
+            <MarketsGasView
+              wallets={wallets}
+              selectedWalletId={selectedWalletId}
+              scanStates={scanStates}
             />
           )}
 

@@ -1006,6 +1006,114 @@ export function registerSupabaseRoutes(
     });
   });
 
+  app.post('/api/db/account/transfer', requireAuth, async (req: AuthedRequest, res) => {
+    const supabase = getSupabaseAdminClient();
+    if (!supabase) {
+      res.status(503).json({
+        error: 'Configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in AI Studio Secrets.',
+      });
+      return;
+    }
+    const authUser = req.authUser!;
+    const { recipientHandle, amountSol, memo } = (req.body || {}) as {
+      recipientHandle?: string;
+      amountSol?: number;
+      memo?: string;
+    };
+
+    const cleanTarget = String(recipientHandle || '')
+      .trim()
+      .replace(/^@/, '')
+      .toLowerCase();
+    const amount = Number(amountSol);
+    const cleanMemo = String(memo || '').trim().slice(0, 120);
+
+    if (!cleanTarget || cleanTarget.length < 2) {
+      res.status(400).json({ error: 'Enter a valid recipient @handle.' });
+      return;
+    }
+    if (!Number.isFinite(amount) || amount < 0.001 || amount > 10_000) {
+      res.status(400).json({ error: 'Transfer amount must be between 0.001 and 10,000 SOL.' });
+      return;
+    }
+
+    const { data: senderRow, error: senderErr } = await supabase
+      .from('chainscope_users')
+      .select('*')
+      .eq('uid', authUser.uid)
+      .single();
+    if (senderErr || !senderRow) {
+      res.status(404).json({ error: 'Sender trader profile not initialized.' });
+      return;
+    }
+    const sender = rowToUser(senderRow as Record<string, unknown>);
+    if (sender.handle.toLowerCase() === cleanTarget) {
+      res.status(400).json({ error: 'Cannot transfer SOL to your own handle.' });
+      return;
+    }
+    if (sender.solBalance < amount) {
+      res.status(400).json({
+        error: `Insufficient platform balance (${sender.solBalance.toFixed(4)} SOL available).`,
+      });
+      return;
+    }
+
+    const { data: recipientRow, error: recErr } = await supabase
+      .from('chainscope_users')
+      .select('*')
+      .ilike('handle', cleanTarget)
+      .limit(1)
+      .maybeSingle();
+    if (recErr || !recipientRow) {
+      res.status(404).json({ error: `Trader @${cleanTarget} was not found.` });
+      return;
+    }
+    const recipient = rowToUser(recipientRow as Record<string, unknown>);
+    const nowIso = new Date().toISOString();
+
+    const senderNextBal = Number((sender.solBalance - amount).toFixed(6));
+    const recipientNextBal = Number((recipient.solBalance + amount).toFixed(6));
+
+    const { data: updatedSender, error: updSenderErr } = await supabase
+      .from('chainscope_users')
+      .update({ sol_balance: senderNextBal, updated_at: nowIso })
+      .eq('uid', sender.uid)
+      .select('*')
+      .single();
+    if (updSenderErr || !updatedSender) {
+      res.status(500).json({ error: formatSupabaseError(updSenderErr) });
+      return;
+    }
+
+    const { error: updRecErr } = await supabase
+      .from('chainscope_users')
+      .update({ sol_balance: recipientNextBal, updated_at: nowIso })
+      .eq('uid', recipient.uid);
+    if (updRecErr) {
+      // Roll back sender balance if recipient update fails
+      await supabase
+        .from('chainscope_users')
+        .update({ sol_balance: sender.solBalance, updated_at: nowIso })
+        .eq('uid', sender.uid);
+      res.status(500).json({ error: formatSupabaseError(updRecErr) });
+      return;
+    }
+
+    await writeAuditLog(
+      supabase,
+      { uid: sender.uid, handle: sender.handle },
+      'USER_SOL_TRANSFER',
+      recipient.uid,
+      `@${sender.handle} sent ${amount.toFixed(4)} SOL to @${recipient.handle}${cleanMemo ? ` ("${cleanMemo}")` : ''}`
+    );
+
+    res.json({
+      profile: rowToUser(updatedSender as Record<string, unknown>),
+      recipientHandle: recipient.handle,
+      amountSol: amount,
+    });
+  });
+
   // --- LAUNCHPAD OVERVIEW & DETAIL ---
   app.get('/api/db/launchpad/overview', requireAuth, async (_req, res) => {
     const supabase = getSupabaseAdminClient();
@@ -1040,6 +1148,59 @@ export function registerSupabaseRoutes(
       traders: (tradersRes.data || []).map((r) => rowToUser(r as Record<string, unknown>)),
       economics,
     });
+  });
+
+  app.get('/api/db/launchpad/activity', requireAuth, async (_req, res) => {
+    const supabase = getSupabaseAdminClient();
+    if (!supabase) {
+      res.status(503).json({
+        error: 'Configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in AI Studio Secrets.',
+      });
+      return;
+    }
+
+    const [tradesRes, coinsRes] = await Promise.all([
+      supabase
+        .from('chainscope_trades')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(30),
+      supabase
+        .from('chainscope_meme_coins')
+        .select('id, name, ticker, emblem_icon, emblem_color'),
+    ]);
+
+    if (tradesRes.error) {
+      res.status(500).json({ error: formatSupabaseError(tradesRes.error) });
+      return;
+    }
+
+    const coinLookup = new Map<
+      string,
+      { name: string; ticker: string; emblemIcon: string; emblemColor: string }
+    >();
+    for (const c of (coinsRes.data || []) as Array<Record<string, unknown>>) {
+      coinLookup.set(String(c.id), {
+        name: String(c.name || ''),
+        ticker: String(c.ticker || ''),
+        emblemIcon: String(c.emblem_icon || 'rocket'),
+        emblemColor: String(c.emblem_color || '#3B82F6'),
+      });
+    }
+
+    const activity = (tradesRes.data || []).map((row) => {
+      const t = rowToTrade(row as Record<string, unknown>);
+      const coinMeta = coinLookup.get(t.coinId);
+      return {
+        ...t,
+        coinName: coinMeta?.name || 'Token',
+        coinTicker: coinMeta?.ticker || 'TOKEN',
+        emblemIcon: coinMeta?.emblemIcon || 'rocket',
+        emblemColor: coinMeta?.emblemColor || '#3B82F6',
+      };
+    });
+
+    res.json({ activity });
   });
 
   app.get('/api/db/launchpad/coins/:coinId/detail', requireAuth, async (req, res) => {

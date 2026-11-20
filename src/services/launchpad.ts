@@ -205,3 +205,31 @@ export async function depositFromConnectedWallet(params: {
     body: JSON.stringify(params),
   });
 }
+
+export async function transferPlatformSol(params: {
+  recipientHandle: string;
+  amountSol: number;
+  memo?: string;
+}): Promise<{
+  profile: UserProfile;
+  recipientHandle: string;
+  amountSol: number;
+}> {
+  return apiRequest('/api/db/account/transfer', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export interface LaunchpadActivityItem extends CoinTrade {
+  coinName: string;
+  coinTicker: string;
+  emblemIcon: EmblemIconName;
+  emblemColor: string;
+}
+
+export async function fetchLaunchpadActivity(): Promise<{
+  activity: LaunchpadActivityItem[];
+}> {
+  return apiRequest('/api/db/launchpad/activity');
+}
