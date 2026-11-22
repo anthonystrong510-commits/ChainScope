@@ -19,6 +19,7 @@ import {
   quoteSell,
   TOTAL_SUPPLY,
 } from '../src/utils/bondingCurve';
+import { registerCscRoutes } from './cscSystem.ts';
 
 export const BOOTSTRAPPED_ADMIN_EMAIL = 'anthonystrong510@gmail.com';
 
@@ -451,6 +452,7 @@ export interface SupabaseRouteDeps {
     chain: string,
     address: string
   ) => Promise<VerifyWalletChainBalanceResult>;
+  getSolUsdPrice?: () => Promise<number>;
 }
 
 const SUPABASE_TABLE_MAP: Record<string, { table: string; orderCol: string }> = {
@@ -3077,5 +3079,31 @@ export function registerSupabaseRoutes(
       return;
     }
     res.json({ table: spec.table, rows: data || [] });
+  });
+
+  // --- CHAINSCOPE SYSTEM COIN (CSC-1) NETWORK ENGINE ---
+  registerCscRoutes(app, {
+    getSupabaseAdminClient,
+    requireAuth,
+    tryParseAuthUser: async (req) => {
+      const authHeader = req.headers.authorization || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (!token) return null;
+      try {
+        return await verifyFirebaseIdToken(token, projectId);
+      } catch {
+        return null;
+      }
+    },
+    getSolUsdPrice: async () => {
+      if (deps.getSolUsdPrice) {
+        try {
+          return await deps.getSolUsdPrice();
+        } catch {
+          return 185;
+        }
+      }
+      return 185;
+    },
   });
 }

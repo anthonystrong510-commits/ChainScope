@@ -86,6 +86,7 @@ export interface WalletScanState {
 export type ActiveTab =
   | 'portfolio'
   | 'transactions'
+  | 'csc'
   | 'launchpad'
   | 'markets'
   | 'import'

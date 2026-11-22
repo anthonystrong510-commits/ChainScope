@@ -1,5 +1,6 @@
 import {
   Activity,
+  Coins,
   Crown,
   Fuel,
   KeyRound,
@@ -79,6 +80,7 @@ export function Sidebar({
   const navItems: Array<{ id: ActiveTab; label: string; icon: typeof Layers }> = [
     { id: 'portfolio', label: 'Portfolio & Scanner', icon: Layers },
     { id: 'transactions', label: 'Transaction Ledger', icon: Activity },
+    { id: 'csc', label: 'ChainScope Coin (CSC)', icon: Coins },
     { id: 'launchpad', label: 'Meme Launchpad', icon: Rocket },
     { id: 'markets', label: 'Gas & Markets', icon: Fuel },
     { id: 'import', label: 'Import & Connect', icon: Plus },

@@ -15,6 +15,7 @@ import { ReceiveModal } from './components/ReceiveModal';
 import { OfflineIndicator, PWAInstallButton } from './components/PWAInstallButton';
 import { DepositToPlatformModal } from './components/DepositToPlatformModal';
 import { MarketsGasView } from './components/MarketsGasView';
+import { ChainScopeCoinView } from './components/ChainScopeCoinView';
 
 const STORAGE_KEY = 'chainscope_wallets_v1';
 
@@ -53,6 +54,16 @@ function ChainScopeShell() {
   walletsRef.current = wallets;
 
   useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const refCode = params.get('ref');
+      if (refCode && refCode.trim().startsWith('CSC-')) {
+        localStorage.setItem('chainscope_pending_csc_ref_v1', refCode.trim().toUpperCase());
+        setActiveTab('csc');
+      }
+    } catch {
+      // ignore invalid URL params
+    }
     const onPopState = () => {
       setPathname(window.location.pathname);
     };
@@ -217,6 +228,8 @@ function ChainScopeShell() {
         return 'Portfolio & Scanner';
       case 'transactions':
         return 'Transaction Ledger';
+      case 'csc':
+        return 'ChainScope Coin (CSC)';
       case 'launchpad':
         return 'Meme Coin Launchpad';
       case 'markets':
@@ -367,6 +380,8 @@ function ChainScopeShell() {
               onScanActive={scanActiveWallets}
             />
           )}
+
+          {activeTab === 'csc' && <ChainScopeCoinView />}
 
           {activeTab === 'launchpad' && (
             <LaunchpadView

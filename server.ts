@@ -1086,7 +1086,13 @@ async function startServer() {
   }
 
   // --- SUPABASE POSTGRESQL PRIMARY DATA ENGINE ---
-  registerSupabaseRoutes(app, __dirname, { verifyWalletChainBalance });
+  registerSupabaseRoutes(app, __dirname, {
+    verifyWalletChainBalance,
+    getSolUsdPrice: async () => {
+      const { prices } = await getLivePrices();
+      return prices['solana']?.usd || 185;
+    },
+  });
 
   const isProd = process.env.NODE_ENV === 'production';
   if (!isProd) {

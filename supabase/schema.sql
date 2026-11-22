@@ -213,3 +213,86 @@ ALTER TABLE public.chainscope_admin_wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chainscope_emergency_funds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chainscope_platform_economics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chainscope_wallet_snapshots ENABLE ROW LEVEL SECURITY;
+
+-- ChainScope System Coin (CSC-1) Network Tables
+CREATE TABLE IF NOT EXISTS public.chainscope_csc_network (
+  id TEXT PRIMARY KEY,
+  chain_id INTEGER NOT NULL DEFAULT 7860,
+  block_height BIGINT NOT NULL DEFAULT 1000,
+  mined_supply NUMERIC NOT NULL DEFAULT 0,
+  reward_pool_remaining NUMERIC NOT NULL DEFAULT 14000000,
+  burned_supply NUMERIC NOT NULL DEFAULT 0,
+  usdt_pool_csc NUMERIC NOT NULL DEFAULT 500000,
+  usdt_pool_usd NUMERIC NOT NULL DEFAULT 125000,
+  usdt_volume_usd NUMERIC NOT NULL DEFAULT 0,
+  usd1_pool_csc NUMERIC NOT NULL DEFAULT 500000,
+  usd1_pool_usd NUMERIC NOT NULL DEFAULT 125000,
+  usd1_volume_usd NUMERIC NOT NULL DEFAULT 0,
+  total_tx_count BIGINT NOT NULL DEFAULT 0,
+  total_taps BIGINT NOT NULL DEFAULT 0,
+  price_history JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.chainscope_csc_accounts (
+  uid TEXT PRIMARY KEY,
+  handle TEXT NOT NULL DEFAULT '',
+  referral_code TEXT UNIQUE NOT NULL,
+  referred_by_uid TEXT NOT NULL DEFAULT '',
+  referred_by_code TEXT NOT NULL DEFAULT '',
+  referral_count INTEGER NOT NULL DEFAULT 0,
+  referral_bonus_csc NUMERIC NOT NULL DEFAULT 0,
+  energy INTEGER NOT NULL DEFAULT 100,
+  last_energy_sync_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  total_taps BIGINT NOT NULL DEFAULT 0,
+  total_mined_csc NUMERIC NOT NULL DEFAULT 0,
+  total_gas_paid_csc NUMERIC NOT NULL DEFAULT 0,
+  primary_wallet_id TEXT NOT NULL DEFAULT '',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.chainscope_csc_wallets (
+  id TEXT PRIMARY KEY,
+  owner_uid TEXT NOT NULL,
+  owner_handle TEXT NOT NULL DEFAULT '',
+  label TEXT NOT NULL DEFAULT 'Primary CSC Vault',
+  address TEXT UNIQUE NOT NULL,
+  evm_address TEXT NOT NULL DEFAULT '',
+  origin TEXT NOT NULL DEFAULT 'genesis',
+  is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+  csc_balance NUMERIC NOT NULL DEFAULT 0,
+  usdt_balance NUMERIC NOT NULL DEFAULT 0,
+  usd1_balance NUMERIC NOT NULL DEFAULT 0,
+  nonce BIGINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.chainscope_csc_transactions (
+  id TEXT PRIMARY KEY,
+  tx_hash TEXT NOT NULL,
+  block_height BIGINT NOT NULL,
+  tx_type TEXT NOT NULL,
+  from_address TEXT NOT NULL DEFAULT '',
+  to_address TEXT NOT NULL DEFAULT '',
+  from_label TEXT NOT NULL DEFAULT '',
+  to_label TEXT NOT NULL DEFAULT '',
+  asset_in TEXT NOT NULL,
+  amount_in NUMERIC NOT NULL DEFAULT 0,
+  asset_out TEXT NOT NULL,
+  amount_out NUMERIC NOT NULL DEFAULT 0,
+  gas_fee_csc NUMERIC NOT NULL DEFAULT 0,
+  burned_csc NUMERIC NOT NULL DEFAULT 0,
+  price_usd_at_tx NUMERIC NOT NULL DEFAULT 0.25,
+  note TEXT NOT NULL DEFAULT '',
+  actor_uid TEXT NOT NULL DEFAULT '',
+  actor_handle TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.chainscope_csc_network ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chainscope_csc_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chainscope_csc_wallets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chainscope_csc_transactions ENABLE ROW LEVEL SECURITY;
+
