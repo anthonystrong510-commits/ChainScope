@@ -1085,6 +1085,79 @@ async function startServer() {
     };
   }
 
+  // --- DIRECT IOS HOME SCREEN SHORTCUT (.mobileconfig Web Clip) ---
+  app.get('/api/pwa/ios-shortcut.mobileconfig', (req, res) => {
+    const protoHeader = String(req.headers['x-forwarded-proto'] || req.protocol || 'https');
+    const proto = protoHeader.split(',')[0].trim() === 'http' ? 'http' : 'https';
+    const host = String(req.headers['x-forwarded-host'] || req.get('host') || 'localhost:3000');
+    const targetUrl = `${proto}://${host}/`;
+
+    let iconBase64 = '';
+    try {
+      const iconPath = path.resolve(__dirname, 'public', 'apple-touch-icon.png');
+      if (fs.existsSync(iconPath)) {
+        iconBase64 = fs.readFileSync(iconPath).toString('base64');
+      }
+    } catch {
+      iconBase64 = '';
+    }
+
+    const iconXml = iconBase64
+      ? `<key>Icon</key>\n      <data>${iconBase64}</data>`
+      : '';
+
+    const mobileconfig = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>FullScreen</key>
+      <true/>
+      <key>IsRemovable</key>
+      <true/>
+      <key>Label</key>
+      <string>ChainScope</string>
+      <key>PayloadDescription</key>
+      <string>Adds the ChainScope Web3 Wallet &amp; Scanner shortcut to your iPhone Home Screen.</string>
+      <key>PayloadDisplayName</key>
+      <string>ChainScope Shortcut</string>
+      <key>PayloadIdentifier</key>
+      <string>app.chainscope.webclip</string>
+      <key>PayloadType</key>
+      <string>com.apple.webClip.managed</string>
+      <key>PayloadUUID</key>
+      <string>A4D81F20-9C3B-4E1A-8B55-71204C9E0011</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>Precomposed</key>
+      <true/>
+      <key>URL</key>
+      <string>${targetUrl.replace(/&/g, '&amp;')}</string>
+      ${iconXml}
+    </dict>
+  </array>
+  <key>PayloadDisplayName</key>
+  <string>ChainScope App Shortcut</string>
+  <key>PayloadIdentifier</key>
+  <string>app.chainscope.profile</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>A4D81F20-9C3B-4E1A-8B55-71204C9E0010</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>`;
+
+    res.setHeader('Content-Type', 'application/x-apple-aspen-config');
+    res.setHeader('Content-Disposition', 'attachment; filename="ChainScope-Shortcut.mobileconfig"');
+    res.send(mobileconfig);
+  });
+
   // --- SUPABASE POSTGRESQL PRIMARY DATA ENGINE ---
   registerSupabaseRoutes(app, __dirname, {
     verifyWalletChainBalance,

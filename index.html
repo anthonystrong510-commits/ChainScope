@@ -11,6 +11,13 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <title>ChainScope — Multi-Chain Web3 Wallet & Real-Time Scanner</title>
+    <script>
+      window.__chainscopeDeferredPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__chainscopeDeferredPrompt = e;
+      });
+    </script>
     <meta
       name="description"
       content="Multi-chain Web3 wallet dashboard with real-time Ethereum, Polygon, L2, and Solana balance scanning, transaction history, private key & seed importing, and manual 12/24-word BIP-39 generator."

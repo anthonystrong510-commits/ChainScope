@@ -68,7 +68,13 @@ type CscSubTab = 'tap' | 'swap' | 'wallets' | 'ledger';
 const PENDING_REF_STORAGE_KEY = 'chainscope_pending_csc_ref_v1';
 
 export function ChainScopeCoinView() {
-  const { user, profile, signInWithGoogle, signInWithBrowserRedirect, refreshAccount } = useAuth();
+  const {
+    user,
+    profile,
+    signInWithGoogle,
+    setShowOnboardingModal,
+    refreshAccount,
+  } = useAuth();
 
   const [subTab, setSubTab] = useState<CscSubTab>('tap');
   const [overview, setOverview] = useState<CscOverviewResponse | null>(null);
@@ -586,18 +592,18 @@ export function ChainScopeCoinView() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => void signInWithGoogle()}
+              onClick={() => setShowOnboardingModal(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold whitespace-nowrap shrink-0 transition-colors"
             >
               <LogIn className="w-3.5 h-3.5" />
-              Sign in with Google
+              Create / Unlock Wallet
             </button>
             <button
               type="button"
-              onClick={() => void signInWithBrowserRedirect()}
+              onClick={() => void signInWithGoogle()}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap shrink-0 transition-colors"
             >
-              Browser Redirect
+              Google (Optional)
             </button>
           </div>
         </div>

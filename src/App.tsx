@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Menu, Plus, RefreshCw, Rocket } from 'lucide-react';
+import { Lock, Menu, Plus, RefreshCw, Rocket } from 'lucide-react';
 import type { ActiveTab, ChainScanResult, WalletEntry, WalletScanState } from './types/wallet';
 import { scanWalletAllChains } from './services/scanner';
 import { syncWalletSnapshotToSupabase } from './services/supabaseSync';
@@ -16,6 +16,9 @@ import { OfflineIndicator, PWAInstallButton } from './components/PWAInstallButto
 import { DepositToPlatformModal } from './components/DepositToPlatformModal';
 import { MarketsGasView } from './components/MarketsGasView';
 import { ChainScopeCoinView } from './components/ChainScopeCoinView';
+import { WalletOnboardingModal } from './components/WalletOnboardingModal';
+import { WalletProfileModal } from './components/WalletProfileModal';
+import { AVATAR_PRESET_COLORS } from './utils/walletVault';
 
 const STORAGE_KEY = 'chainscope_wallets_v1';
 
@@ -35,7 +38,14 @@ function loadInitialWallets(): WalletEntry[] {
 }
 
 function ChainScopeShell() {
-  const { user, profile, isAdmin } = useAuth();
+  const {
+    user,
+    profile,
+    walletAccount,
+    isAdmin,
+    setShowOnboardingModal,
+    setShowProfileModal,
+  } = useAuth();
   const [pathname, setPathname] = useState<string>(() =>
     typeof window !== 'undefined' ? window.location.pathname : '/'
   );
@@ -176,6 +186,68 @@ function ChainScopeShell() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const attachUsernameWallet = useCallback(
+    (username: string, evmAddress: string, solanaAddress: string) => {
+      if (!evmAddress && !solanaAddress) return;
+      const cleanLabel = `@${username} Wallet`;
+      const newEntry: WalletEntry = {
+        id: `user_${username.toLowerCase()}_${Date.now()}`,
+        label: cleanLabel,
+        origin: 'seed',
+        evmAddress: evmAddress || undefined,
+        solanaAddress: solanaAddress || undefined,
+        wordCount: 12,
+        accountIndex: 0,
+        createdAt: Date.now(),
+      };
+      setWallets((prev) => {
+        const existing = prev.find(
+          (w) =>
+            (evmAddress && w.evmAddress?.toLowerCase() === evmAddress.toLowerCase()) ||
+            (solanaAddress && w.solanaAddress === solanaAddress)
+        );
+        if (existing) {
+          setSelectedWalletId(existing.id);
+          void scanWalletById(existing);
+          return prev;
+        }
+        setSelectedWalletId(newEntry.id);
+        void scanWalletById(newEntry);
+        return [newEntry, ...prev];
+      });
+    },
+    [scanWalletById]
+  );
+
+  useEffect(() => {
+    const onProvisioned = (ev: Event) => {
+      const detail = (ev as CustomEvent<{
+        username?: string;
+        evmAddress?: string;
+        solanaAddress?: string;
+      }>).detail;
+      if (detail?.username && (detail.evmAddress || detail.solanaAddress)) {
+        attachUsernameWallet(
+          detail.username,
+          detail.evmAddress || '',
+          detail.solanaAddress || ''
+        );
+      }
+    };
+    window.addEventListener('chainscope:wallet-provisioned', onProvisioned);
+    return () => window.removeEventListener('chainscope:wallet-provisioned', onProvisioned);
+  }, [attachUsernameWallet]);
+
+  useEffect(() => {
+    if (walletAccount?.username && (walletAccount.evmAddress || walletAccount.solanaAddress)) {
+      attachUsernameWallet(
+        walletAccount.username,
+        walletAccount.evmAddress,
+        walletAccount.solanaAddress
+      );
+    }
+  }, [walletAccount?.username, walletAccount?.evmAddress, walletAccount?.solanaAddress, attachUsernameWallet]);
 
   useEffect(() => {
     if (autoRefreshSec <= 0) return;
@@ -343,11 +415,54 @@ function ChainScopeShell() {
             <button
               type="button"
               onClick={() => setActiveTab('import')}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium whitespace-nowrap shrink-0 transition-colors"
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap shrink-0 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               Connect / Import
             </button>
+            {user ? (
+              <button
+                type="button"
+                onClick={() => setShowProfileModal(true)}
+                className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap shrink-0 transition-colors"
+                title="Wallet Profile, Photo & Seed Vault Settings"
+              >
+                {(walletAccount?.avatarUrl || user.photoURL || '').startsWith('data:image/') ||
+                (walletAccount?.avatarUrl || user.photoURL || '').startsWith('http') ? (
+                  <img
+                    src={walletAccount?.avatarUrl || user.photoURL || ''}
+                    alt="Profile"
+                    className="w-6 h-6 rounded-full object-cover shrink-0"
+                  />
+                ) : (
+                  <span
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
+                    style={{
+                      backgroundColor: (walletAccount?.avatarUrl || '').startsWith('preset:')
+                        ? (walletAccount?.avatarUrl || '').slice(7)
+                        : AVATAR_PRESET_COLORS[0],
+                    }}
+                  >
+                    {(
+                      walletAccount?.username?.[0] ||
+                      profile?.handle?.[0] ||
+                      user.displayName?.[0] ||
+                      'C'
+                    ).toUpperCase()}
+                  </span>
+                )}
+                <span>@{walletAccount?.username || profile?.handle || 'wallet'}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowOnboardingModal(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold whitespace-nowrap shrink-0 transition-colors"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                Create / Unlock Wallet
+              </button>
+            )}
           </div>
         </header>
 
@@ -427,6 +542,9 @@ function ChainScopeShell() {
           }}
         />
       )}
+
+      <WalletOnboardingModal />
+      <WalletProfileModal />
     </div>
   );
 }

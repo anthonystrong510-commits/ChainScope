@@ -1,4 +1,4 @@
-import { auth, getAuthHeaders } from '../firebase';
+import { getAuthHeaders, hasActiveAuthSession } from '../firebase';
 import type { CscAsset, CscGasTier, CscOverviewResponse } from '../types/csc';
 
 async function cscFetch<T>(
@@ -10,7 +10,7 @@ async function cscFetch<T>(
     'Content-Type': 'application/json',
   };
 
-  if (auth.currentUser || requireAuth) {
+  if (hasActiveAuthSession() || requireAuth) {
     const authHeaders = await getAuthHeaders();
     Object.assign(headers, authHeaders);
   }

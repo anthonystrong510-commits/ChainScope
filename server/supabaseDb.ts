@@ -20,6 +20,12 @@ import {
   TOTAL_SUPPLY,
 } from '../src/utils/bondingCurve';
 import { registerCscRoutes } from './cscSystem.ts';
+import {
+  registerWalletAuthRoutes,
+  resolveUnifiedUidForGoogle,
+  resolveWalletAuthByUid,
+  verifyWalletSessionToken,
+} from './walletAuth.ts';
 
 export const BOOTSTRAPPED_ADMIN_EMAIL = 'anthonystrong510@gmail.com';
 
@@ -478,6 +484,47 @@ export function registerSupabaseRoutes(
 ) {
   const projectId = loadFirebaseProjectId(rootDir);
 
+  const authenticateToken = async (token: string): Promise<AuthUser> => {
+    const supabase = getSupabaseAdminClient();
+    if (token.startsWith('cs1.')) {
+      const parsed = verifyWalletSessionToken(token);
+      if (!parsed) {
+        throw new Error('Wallet session expired. Please unlock your wallet again.');
+      }
+      if (supabase) {
+        const rec = await resolveWalletAuthByUid(supabase, parsed.uid);
+        if (rec) {
+          return {
+            uid: rec.uid,
+            email: rec.linkedGoogleEmail || '',
+            emailVerified: Boolean(rec.linkedGoogleEmail),
+            name: rec.displayName || rec.username,
+          };
+        }
+      }
+      return {
+        uid: parsed.uid,
+        email: '',
+        emailVerified: false,
+        name: parsed.username,
+      };
+    }
+
+    const fbUser = await verifyFirebaseIdToken(token, projectId);
+    if (supabase) {
+      const linked = await resolveUnifiedUidForGoogle(supabase, fbUser.uid);
+      if (linked) {
+        return {
+          uid: linked.uid,
+          email: fbUser.email,
+          emailVerified: fbUser.emailVerified,
+          name: linked.displayName || linked.username || fbUser.name,
+        };
+      }
+    }
+    return fbUser;
+  };
+
   const requireAuth = async (req: AuthedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
@@ -486,7 +533,7 @@ export function registerSupabaseRoutes(
       return;
     }
     try {
-      req.authUser = await verifyFirebaseIdToken(token, projectId);
+      req.authUser = await authenticateToken(token);
       next();
     } catch (err) {
       res.status(401).json({
@@ -3081,6 +3128,13 @@ export function registerSupabaseRoutes(
     res.json({ table: spec.table, rows: data || [] });
   });
 
+  // --- WALLET USERNAME / PASSWORD AUTH & PROFILE ROUTES ---
+  registerWalletAuthRoutes(app, {
+    getSupabaseAdminClient,
+    verifyFirebaseIdToken: (token: string) => verifyFirebaseIdToken(token, projectId),
+    requireAuth,
+  });
+
   // --- CHAINSCOPE SYSTEM COIN (CSC-1) NETWORK ENGINE ---
   registerCscRoutes(app, {
     getSupabaseAdminClient,
@@ -3090,7 +3144,7 @@ export function registerSupabaseRoutes(
       const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
       if (!token) return null;
       try {
-        return await verifyFirebaseIdToken(token, projectId);
+        return await authenticateToken(token);
       } catch {
         return null;
       }

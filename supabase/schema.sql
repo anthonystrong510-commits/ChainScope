@@ -296,3 +296,26 @@ ALTER TABLE public.chainscope_csc_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chainscope_csc_wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chainscope_csc_transactions ENABLE ROW LEVEL SECURITY;
 
+-- Wallet Username/Password Auth, Profile Photos & Optional Google Linking
+ALTER TABLE public.chainscope_users ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.chainscope_users ADD COLUMN IF NOT EXISTS linked_google_uid TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.chainscope_users ADD COLUMN IF NOT EXISTS linked_google_email TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS public.chainscope_wallet_auth (
+  uid TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  username_lower TEXT UNIQUE NOT NULL,
+  display_name TEXT NOT NULL DEFAULT '',
+  avatar_url TEXT NOT NULL DEFAULT '',
+  password_hash TEXT NOT NULL DEFAULT '',
+  evm_address TEXT NOT NULL DEFAULT '',
+  solana_address TEXT NOT NULL DEFAULT '',
+  csc_address TEXT NOT NULL DEFAULT '',
+  linked_google_uid TEXT NOT NULL DEFAULT '',
+  linked_google_email TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.chainscope_wallet_auth ENABLE ROW LEVEL SECURITY;
+

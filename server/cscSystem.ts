@@ -3,6 +3,7 @@ import type { Express, NextFunction, Request, Response } from 'express';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import bs58 from 'bs58';
 import { ethers } from 'ethers';
+import { resolveWalletAuthByUid } from './walletAuth.ts';
 import type {
   CscAsset,
   CscGasTier,
@@ -645,7 +646,14 @@ async function ensureUserProvisioned(
 
   let account = ledger.accounts[authUser.uid];
   if (!account) {
-    const keys = makeDeterministicGenesisKeys(authUser.uid);
+    const walletAuthRec = await resolveWalletAuthByUid(supabase, authUser.uid);
+    const keys = walletAuthRec?.cscAddress
+      ? {
+          address: walletAuthRec.cscAddress,
+          evmAddress:
+            walletAuthRec.evmAddress || makeDeterministicGenesisKeys(authUser.uid).evmAddress,
+        }
+      : makeDeterministicGenesisKeys(authUser.uid);
     const walletId = makeId('cscw');
     const stipend = Math.min(GENESIS_GAS_STIPEND_CSC, ledger.network.rewardPoolRemaining);
 
@@ -661,7 +669,7 @@ async function ensureUserProvisioned(
       id: walletId,
       ownerUid: authUser.uid,
       ownerHandle: handle,
-      label: 'Primary CSC Wallet',
+      label: walletAuthRec?.username ? `@${walletAuthRec.username} Wallet` : 'Primary CSC Wallet',
       address: keys.address,
       evmAddress: keys.evmAddress,
       origin: 'genesis',
