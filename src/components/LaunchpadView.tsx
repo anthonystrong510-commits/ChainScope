@@ -244,8 +244,8 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
   useEffect(() => {
     let active = true;
     fetch('/api/prices')
-      .then((r) => r.json())
-      .then((data: { prices?: { solana?: { usd?: number } } }) => {
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { prices?: { solana?: { usd?: number } } } | null) => {
         if (active && typeof data?.prices?.solana?.usd === 'number') {
           setSolUsdPrice(data.prices.solana.usd);
         }

@@ -1,4 +1,4 @@
-import type { CscAsset, CscGasTier, CscPoolState } from '../types/csc';
+import type { CscAsset, CscGasTier, CscPoolState } from '../types/csc.ts';
 
 export const CSC_CHAIN_ID = 7860;
 export const CSC_NETWORK_CODE = 'CSC-1';

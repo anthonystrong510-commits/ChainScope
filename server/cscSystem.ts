@@ -16,7 +16,7 @@ import type {
   CscTransaction,
   CscUserAccount,
   CscWallet,
-} from '../src/types/csc';
+} from '../src/types/csc.ts';
 import {
   computeSyncedEnergy,
   computeTapYield,
@@ -36,7 +36,7 @@ import {
   CSC_REFERRAL_INVITER_BONUS,
   getHalvingInfo,
   quoteCscSwap,
-} from '../src/utils/cscEconomics';
+} from '../src/utils/cscEconomics.ts';
 
 export interface CscAuthUser {
   uid: string;

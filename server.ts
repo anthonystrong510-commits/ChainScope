@@ -1167,6 +1167,10 @@ async function startServer() {
     },
   });
 
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'API endpoint not found' });
+  });
+
   const isProd = process.env.NODE_ENV === 'production';
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
@@ -1179,7 +1183,7 @@ async function startServer() {
     const distPath = path.resolve(__dirname, 'dist');
     if (fs.existsSync(distPath)) {
       app.use(express.static(distPath));
-      app.get('/{*splat}', (_req, res) => {
+      app.get('*', (_req, res) => {
         res.sendFile(path.join(distPath, 'index.html'));
       });
     }

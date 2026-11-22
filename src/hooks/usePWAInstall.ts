@@ -40,7 +40,7 @@ export function usePWAInstall() {
   const [platform] = useState<MobilePlatform>(detectMobilePlatform);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.__chainscopeDeferredPrompt && !deferredPrompt) {
+    if (typeof window !== 'undefined' && window.__chainscopeDeferredPrompt) {
       setDeferredPrompt(window.__chainscopeDeferredPrompt);
     }
 
@@ -53,8 +53,16 @@ export function usePWAInstall() {
       }
     };
 
+    const syncFromEarlyCapture = () => {
+      if (window.__chainscopeDeferredPrompt) {
+        setDeferredPrompt(window.__chainscopeDeferredPrompt);
+      }
+    };
+
     const handleBeforeInstall = (e: Event) => {
-      e.preventDefault();
+      if (!e.defaultPrevented) {
+        e.preventDefault();
+      }
       const ev = e as BeforeInstallPromptEvent;
       window.__chainscopeDeferredPrompt = ev;
       setDeferredPrompt(ev);
@@ -66,16 +74,18 @@ export function usePWAInstall() {
       window.__chainscopeDeferredPrompt = null;
     };
 
+    window.addEventListener('chainscope:pwa-prompt-ready', syncFromEarlyCapture);
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
     window.addEventListener('appinstalled', handleAppInstalled);
     mq?.addEventListener?.('change', syncStandalone);
 
     return () => {
+      window.removeEventListener('chainscope:pwa-prompt-ready', syncFromEarlyCapture);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
       window.removeEventListener('appinstalled', handleAppInstalled);
       mq?.removeEventListener?.('change', syncStandalone);
     };
-  }, [deferredPrompt]);
+  }, []);
 
   const promptInstall = useCallback(async (): Promise<'accepted' | 'dismissed' | 'manual'> => {
     const activePrompt =

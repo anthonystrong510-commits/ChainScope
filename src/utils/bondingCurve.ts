@@ -3,7 +3,7 @@ import type {
   GasTier,
   PerpPosition,
   PlatformEconomics,
-} from '../types/launchpad';
+} from '../types/launchpad.ts';
 
 export const TOTAL_SUPPLY = 1_000_000_000;
 export const CURVE_TOKEN_ALLOCATION = 800_000_000;

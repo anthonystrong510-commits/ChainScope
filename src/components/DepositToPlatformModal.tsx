@@ -62,8 +62,8 @@ export function DepositToPlatformModal({
 
   useEffect(() => {
     fetch('/api/prices')
-      .then((r) => r.json())
-      .then((d: { prices?: { solana?: { usd?: number } } }) => {
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { prices?: { solana?: { usd?: number } } } | null) => {
         if (typeof d?.prices?.solana?.usd === 'number' && d.prices.solana.usd > 0) {
           setSolUsdPrice(d.prices.solana.usd);
         }

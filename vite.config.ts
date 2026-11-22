@@ -58,6 +58,7 @@ export default defineConfig(() => {
               options: {
                 cacheName: 'chainscope-api-cache',
                 networkTimeoutSeconds: 4,
+                cacheableResponse: {statuses: [200]},
                 expiration: {maxEntries: 20, maxAgeSeconds: 300},
               },
             },

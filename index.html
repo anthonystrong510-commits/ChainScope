@@ -16,6 +16,7 @@
       window.addEventListener('beforeinstallprompt', function (e) {
         e.preventDefault();
         window.__chainscopeDeferredPrompt = e;
+        window.dispatchEvent(new Event('chainscope:pwa-prompt-ready'));
       });
     </script>
     <meta

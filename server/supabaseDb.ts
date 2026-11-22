@@ -7,7 +7,7 @@ import type {
   CoinMode,
   GasTier,
   PlatformEconomics,
-} from '../src/types/launchpad';
+} from '../src/types/launchpad.ts';
 import {
   computeGasFee,
   computeLiquidationPrice,
@@ -18,7 +18,7 @@ import {
   quoteBuy,
   quoteSell,
   TOTAL_SUPPLY,
-} from '../src/utils/bondingCurve';
+} from '../src/utils/bondingCurve.ts';
 import { registerCscRoutes } from './cscSystem.ts';
 import {
   registerWalletAuthRoutes,

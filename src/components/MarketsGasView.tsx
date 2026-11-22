@@ -110,6 +110,10 @@ export function MarketsGasView({
     if (showSpinner) setLoading(true);
     try {
       const res = await fetch('/api/gas-tracker');
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(`Gas tracker unavailable (HTTP ${res.status})`);
+      }
       const json = (await res.json()) as GasTrackerPayload & { error?: string };
       if (!res.ok) {
         throw new Error(json.error || 'Failed to fetch live gas tracker');

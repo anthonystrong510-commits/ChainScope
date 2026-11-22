@@ -149,8 +149,8 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
 
   useEffect(() => {
     fetch('/api/prices')
-      .then((r) => r.json())
-      .then((data: { prices?: { solana?: { usd?: number } } }) => {
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { prices?: { solana?: { usd?: number } } } | null) => {
         if (typeof data?.prices?.solana?.usd === 'number') {
           setSolUsdPrice(data.prices.solana.usd);
         }
