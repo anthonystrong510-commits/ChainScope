@@ -16,6 +16,7 @@ import { OfflineIndicator, PWAInstallButton } from './components/PWAInstallButto
 import { DepositToPlatformModal } from './components/DepositToPlatformModal';
 import { MarketsGasView } from './components/MarketsGasView';
 import { ChainScopeCoinView } from './components/ChainScopeCoinView';
+import { P2PView } from './components/P2PView';
 import { WalletOnboardingModal } from './components/WalletOnboardingModal';
 import { WalletProfileModal } from './components/WalletProfileModal';
 import { AVATAR_PRESET_COLORS } from './utils/walletVault';
@@ -302,6 +303,8 @@ function ChainScopeShell() {
         return 'Transaction Ledger';
       case 'csc':
         return 'ChainScope Coin (CSC)';
+      case 'p2p':
+        return 'Decentralized P2P';
       case 'launchpad':
         return 'Meme Coin Launchpad';
       case 'markets':
@@ -497,6 +500,8 @@ function ChainScopeShell() {
           )}
 
           {activeTab === 'csc' && <ChainScopeCoinView />}
+
+          {activeTab === 'p2p' && <P2PView wallets={wallets} />}
 
           {activeTab === 'launchpad' && (
             <LaunchpadView

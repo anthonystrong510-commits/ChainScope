@@ -292,6 +292,30 @@ function validateAvatarDataUrl(raw: unknown): string {
   return '';
 }
 
+function findWalletOwnerConflict(
+  registry: AuthRegistry,
+  excludeUid: string,
+  addresses: { evmAddress?: string; solanaAddress?: string; cscAddress?: string }
+): WalletAuthRecord | null {
+  const normEvm = (addresses.evmAddress || '').trim().toLowerCase();
+  const normSol = (addresses.solanaAddress || '').trim();
+  const normCsc = (addresses.cscAddress || '').trim();
+
+  for (const r of Object.values(registry.byUid)) {
+    if (r.uid === excludeUid) continue;
+    if (normEvm && r.evmAddress && r.evmAddress.toLowerCase() === normEvm) {
+      return r;
+    }
+    if (normSol && r.solanaAddress && r.solanaAddress === normSol) {
+      return r;
+    }
+    if (normCsc && r.cscAddress && r.cscAddress === normCsc) {
+      return r;
+    }
+  }
+  return null;
+}
+
 function toPublicWalletInfo(rec: WalletAuthRecord) {
   return {
     uid: rec.uid,
@@ -303,6 +327,7 @@ function toPublicWalletInfo(rec: WalletAuthRecord) {
     cscAddress: rec.cscAddress,
     linkedGoogleEmail: rec.linkedGoogleEmail,
     hasPassword: Boolean(rec.passwordHash),
+    walletLocked: Boolean(rec.evmAddress || rec.solanaAddress || rec.cscAddress),
     createdAt: rec.createdAt,
   };
 }
@@ -410,6 +435,19 @@ export function registerWalletAuthRoutes(app: Express, deps: WalletAuthRouteDeps
           throw new Error(`Username @${userCheck.clean} is already taken.`);
         }
 
+        const normEvm = ethers.getAddress(evmAddress);
+        const normCsc = cscAddress || `CSC1${solanaAddress}`;
+        const walletConflict = findWalletOwnerConflict(registry, '', {
+          evmAddress: normEvm,
+          solanaAddress,
+          cscAddress: normCsc,
+        });
+        if (walletConflict) {
+          throw new Error(
+            `This wallet address is already permanently bound 1:1 to @${walletConflict.username}. One wallet cannot hold multiple usernames.`
+          );
+        }
+
         const now = Date.now();
         const nowIso = new Date(now).toISOString();
         const uid = `wallet_${crypto.randomBytes(10).toString('hex')}`;
@@ -425,9 +463,9 @@ export function registerWalletAuthRoutes(app: Express, deps: WalletAuthRouteDeps
           displayName,
           avatarUrl,
           passwordHash,
-          evmAddress: ethers.getAddress(evmAddress),
+          evmAddress: normEvm,
           solanaAddress,
-          cscAddress: cscAddress || `CSC1${solanaAddress}`,
+          cscAddress: normCsc,
           linkedGoogleUid: '',
           linkedGoogleEmail: '',
           createdAt: now,
@@ -606,10 +644,42 @@ export function registerWalletAuthRoutes(app: Express, deps: WalletAuthRouteDeps
             rec.avatarUrl = validateAvatarDataUrl(body.avatarUrl);
           }
           if (body.evmAddress && ethers.isAddress(body.evmAddress)) {
-            rec.evmAddress = ethers.getAddress(body.evmAddress);
+            const candidateEvm = ethers.getAddress(body.evmAddress);
+            if (rec.evmAddress && rec.evmAddress.toLowerCase() !== candidateEvm.toLowerCase()) {
+              throw new Error(
+                `@${rec.username} is permanently bound 1:1 to wallet ${rec.evmAddress}. Wallet reassignment is locked for P2P security.`
+              );
+            }
+            const conflict = findWalletOwnerConflict(registry, uid, { evmAddress: candidateEvm });
+            if (conflict) {
+              throw new Error(`Wallet ${candidateEvm} is already bound 1:1 to @${conflict.username}.`);
+            }
+            rec.evmAddress = candidateEvm;
           }
-          if (body.solanaAddress) rec.solanaAddress = body.solanaAddress.trim();
-          if (body.cscAddress) rec.cscAddress = body.cscAddress.trim();
+          if (body.solanaAddress) {
+            const candidateSol = body.solanaAddress.trim();
+            if (rec.solanaAddress && rec.solanaAddress !== candidateSol) {
+              throw new Error(
+                `@${rec.username} is permanently bound 1:1 to Solana address ${rec.solanaAddress}.`
+              );
+            }
+            const conflict = findWalletOwnerConflict(registry, uid, { solanaAddress: candidateSol });
+            if (conflict) {
+              throw new Error(`Solana wallet is already bound 1:1 to @${conflict.username}.`);
+            }
+            rec.solanaAddress = candidateSol;
+          }
+          if (body.cscAddress) {
+            const candidateCsc = body.cscAddress.trim();
+            if (rec.cscAddress && rec.cscAddress !== candidateCsc) {
+              throw new Error(`@${rec.username} is already bound 1:1 to CSC wallet ${rec.cscAddress}.`);
+            }
+            const conflict = findWalletOwnerConflict(registry, uid, { cscAddress: candidateCsc });
+            if (conflict) {
+              throw new Error(`CSC wallet is already bound 1:1 to @${conflict.username}.`);
+            }
+            rec.cscAddress = candidateCsc;
+          }
           rec.updatedAt = now;
 
           await supabase

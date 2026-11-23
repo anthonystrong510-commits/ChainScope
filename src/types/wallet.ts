@@ -87,6 +87,7 @@ export type ActiveTab =
   | 'portfolio'
   | 'transactions'
   | 'csc'
+  | 'p2p'
   | 'launchpad'
   | 'markets'
   | 'import'

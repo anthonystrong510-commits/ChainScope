@@ -59,6 +59,7 @@ export interface WalletAccountInfo {
   cscAddress: string;
   linkedGoogleEmail: string;
   hasPassword: boolean;
+  walletLocked?: boolean;
   createdAt: number;
 }
 

@@ -1914,3 +1914,114 @@ export function registerCscRoutes(app: Express, deps: CscRouteDeps) {
     }
   });
 }
+
+export async function getCscSpotPriceUsd(supabase: SupabaseClient | null): Promise<number> {
+  if (!supabase) return CSC_GENESIS_PRICE_USD;
+  try {
+    const { ledger } = await loadLedgerFromSupabase(supabase);
+    return buildNetworkStats(ledger).spotPriceUsd || CSC_GENESIS_PRICE_USD;
+  } catch {
+    return CSC_GENESIS_PRICE_USD;
+  }
+}
+
+export async function executeCscVaultEscrowOp(
+  supabase: SupabaseClient,
+  params: {
+    action: 'debit' | 'credit';
+    uid: string;
+    handle: string;
+    asset: 'CSC' | 'USDT' | 'USD1';
+    amount: number;
+    note: string;
+  }
+): Promise<{ txHash: string; newBalance: number }> {
+  if (!Number.isFinite(params.amount) || params.amount <= 0) {
+    throw new Error('Escrow amount must be positive.');
+  }
+
+  return withLedgerLock(async () => {
+    const { ledger, storageMode } = await loadLedgerFromSupabase(supabase);
+    const authUser: CscAuthUser = {
+      uid: params.uid,
+      email: '',
+      emailVerified: false,
+      name: params.handle,
+    };
+    const prov = await ensureUserProvisioned(supabase, ledger, authUser);
+    const wallet = Object.values(ledger.wallets).find(
+      (w) => w.ownerUid === params.uid && w.isPrimary
+    ) || Object.values(ledger.wallets).find((w) => w.ownerUid === params.uid);
+
+    if (!wallet) {
+      throw new Error('Unable to locate primary ChainScope vault wallet.');
+    }
+
+    const amt = Number(params.amount.toFixed(6));
+    const current =
+      params.asset === 'CSC'
+        ? wallet.cscBalance
+        : params.asset === 'USDT'
+        ? wallet.usdtBalance
+        : wallet.usd1Balance;
+
+    if (params.action === 'debit' && current + 1e-9 < amt) {
+      throw new Error(
+        `Insufficient ${params.asset} vault balance (${current.toFixed(4)} available, need ${amt.toFixed(4)}). Switch to On-Chain Wallet TX Escrow or deposit coins first.`
+      );
+    }
+
+    const nextBal = Number(
+      (params.action === 'debit' ? Math.max(0, current - amt) : current + amt).toFixed(6)
+    );
+    if (params.asset === 'CSC') wallet.cscBalance = nextBal;
+    if (params.asset === 'USDT') wallet.usdtBalance = nextBal;
+    if (params.asset === 'USD1') wallet.usd1Balance = nextBal;
+
+    const now = Date.now();
+    wallet.nonce += 1;
+    wallet.updatedAt = now;
+    wallet.lastSyncedAt = now;
+
+    ledger.network.blockHeight += 1;
+    ledger.network.totalTxCount += 1;
+    ledger.network.updatedAt = now;
+
+    const txHash = makeTxHash(`p2p:${params.uid}:${params.asset}:${params.action}`);
+    const spotUsd = buildNetworkStats(ledger).spotPriceUsd;
+    const tx: CscTransaction = {
+      id: makeId('p2ptx'),
+      txHash,
+      blockHeight: ledger.network.blockHeight,
+      type: 'wallet_transfer',
+      fromAddress: params.action === 'debit' ? wallet.address : 'CSC1_P2P_ESCROW_VAULT',
+      toAddress: params.action === 'debit' ? 'CSC1_P2P_ESCROW_VAULT' : wallet.address,
+      fromLabel: params.action === 'debit' ? `@${params.handle}` : 'P2P Escrow Vault',
+      toLabel: params.action === 'debit' ? 'P2P Escrow Vault' : `@${params.handle}`,
+      assetIn: params.asset,
+      amountIn: amt,
+      assetOut: params.asset,
+      amountOut: amt,
+      gasFeeCsc: 0,
+      burnedCsc: 0,
+      priceUsdAtTx: params.asset === 'CSC' ? spotUsd : 1,
+      note: params.note,
+      actorUid: params.uid,
+      actorHandle: params.handle,
+      createdAt: now,
+    };
+
+    ledger.transactions.unshift(tx);
+    await saveLedgerToSupabase(
+      supabase,
+      ledger,
+      storageMode,
+      prov.dirtyAccountUids,
+      Array.from(new Set([...prov.dirtyWalletIds, wallet.id])),
+      [...prov.newTransactions, tx]
+    );
+
+    return { txHash, newBalance: nextBal };
+  });
+}
+

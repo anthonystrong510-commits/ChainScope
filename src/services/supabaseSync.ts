@@ -14,7 +14,11 @@ export type SupabaseTableKey =
   | 'admins'
   | 'audit_logs'
   | 'economics'
-  | 'wallet_snapshots';
+  | 'wallet_snapshots'
+  | 'p2p_payment_profiles'
+  | 'p2p_ads'
+  | 'p2p_orders'
+  | 'p2p_messages';
 
 export interface FirestoreMigrationResult {
   migrated: boolean;

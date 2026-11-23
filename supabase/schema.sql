@@ -319,3 +319,124 @@ CREATE TABLE IF NOT EXISTS public.chainscope_wallet_auth (
 
 ALTER TABLE public.chainscope_wallet_auth ENABLE ROW LEVEL SECURITY;
 
+-- Strict 1:1 Username <-> Wallet Fingerprint Index
+ALTER TABLE public.chainscope_wallet_auth ADD COLUMN IF NOT EXISTS wallet_fingerprint TEXT NOT NULL DEFAULT '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_chainscope_wallet_auth_evm_unique
+  ON public.chainscope_wallet_auth (LOWER(evm_address))
+  WHERE evm_address <> '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_chainscope_wallet_auth_sol_unique
+  ON public.chainscope_wallet_auth (solana_address)
+  WHERE solana_address <> '';
+
+-- Decentralized Proof-Based P2P Exchange Tables
+CREATE TABLE IF NOT EXISTS public.chainscope_p2p_payment_profiles (
+  id TEXT PRIMARY KEY,
+  owner_uid TEXT NOT NULL,
+  country_code TEXT NOT NULL DEFAULT 'US',
+  currency TEXT NOT NULL DEFAULT 'USD',
+  method_id TEXT NOT NULL,
+  method_name TEXT NOT NULL,
+  account_holder TEXT NOT NULL DEFAULT '',
+  account_details TEXT NOT NULL DEFAULT '',
+  instructions TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_chainscope_p2p_profiles_owner
+  ON public.chainscope_p2p_payment_profiles (owner_uid, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.chainscope_p2p_ads (
+  id TEXT PRIMARY KEY,
+  maker_uid TEXT NOT NULL,
+  maker_username TEXT NOT NULL,
+  maker_display_name TEXT NOT NULL DEFAULT '',
+  maker_wallet_address TEXT NOT NULL DEFAULT '',
+  maker_evm_address TEXT NOT NULL DEFAULT '',
+  maker_solana_address TEXT NOT NULL DEFAULT '',
+  maker_csc_address TEXT NOT NULL DEFAULT '',
+  side TEXT NOT NULL CHECK (side IN ('sell', 'buy')),
+  asset TEXT NOT NULL,
+  country_code TEXT NOT NULL DEFAULT 'US',
+  fiat_currency TEXT NOT NULL DEFAULT 'USD',
+  price_type TEXT NOT NULL DEFAULT 'fixed' CHECK (price_type IN ('fixed', 'floating')),
+  fixed_price_fiat NUMERIC NOT NULL DEFAULT 0,
+  floating_margin_pct NUMERIC NOT NULL DEFAULT 0,
+  available_crypto_amount NUMERIC NOT NULL DEFAULT 0,
+  min_fiat_order NUMERIC NOT NULL DEFAULT 10,
+  max_fiat_order NUMERIC NOT NULL DEFAULT 5000,
+  payment_method_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+  payment_method_names JSONB NOT NULL DEFAULT '[]'::jsonb,
+  payment_window_mins INTEGER NOT NULL DEFAULT 15,
+  escrow_mode TEXT NOT NULL DEFAULT 'vault_balance' CHECK (escrow_mode IN ('vault_balance', 'onchain_proof')),
+  terms TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'closed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_chainscope_p2p_ads_market
+  ON public.chainscope_p2p_ads (status, side, asset, country_code, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.chainscope_p2p_orders (
+  id TEXT PRIMARY KEY,
+  ad_id TEXT NOT NULL,
+  asset TEXT NOT NULL,
+  country_code TEXT NOT NULL DEFAULT 'US',
+  fiat_currency TEXT NOT NULL DEFAULT 'USD',
+  unit_price_fiat NUMERIC NOT NULL DEFAULT 0,
+  crypto_amount NUMERIC NOT NULL DEFAULT 0,
+  fiat_amount NUMERIC NOT NULL DEFAULT 0,
+  fee_crypto NUMERIC NOT NULL DEFAULT 0,
+  net_buyer_crypto NUMERIC NOT NULL DEFAULT 0,
+  buyer_uid TEXT NOT NULL,
+  buyer_username TEXT NOT NULL,
+  buyer_wallet_address TEXT NOT NULL DEFAULT '',
+  seller_uid TEXT NOT NULL,
+  seller_username TEXT NOT NULL,
+  seller_wallet_address TEXT NOT NULL DEFAULT '',
+  payment_method_id TEXT NOT NULL,
+  payment_method_name TEXT NOT NULL,
+  payment_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+  escrow_mode TEXT NOT NULL DEFAULT 'vault_balance',
+  escrow_asset_locked BOOLEAN NOT NULL DEFAULT FALSE,
+  escrow_locked_amount NUMERIC NOT NULL DEFAULT 0,
+  escrow_tx_hash TEXT NOT NULL DEFAULT '',
+  escrow_signature TEXT NOT NULL DEFAULT '',
+  escrow_vault_address TEXT NOT NULL DEFAULT '',
+  fiat_proof_ref TEXT NOT NULL DEFAULT '',
+  fiat_proof_image TEXT NOT NULL DEFAULT '',
+  fiat_proof_note TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'awaiting_escrow',
+  dispute_reason TEXT NOT NULL DEFAULT '',
+  disputed_by_uid TEXT NOT NULL DEFAULT '',
+  admin_resolution_note TEXT NOT NULL DEFAULT '',
+  resolved_by_uid TEXT NOT NULL DEFAULT '',
+  resolved_by_handle TEXT NOT NULL DEFAULT '',
+  payment_deadline_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  escrow_locked_at TIMESTAMPTZ,
+  fiat_paid_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_chainscope_p2p_orders_parties
+  ON public.chainscope_p2p_orders (buyer_uid, seller_uid, status, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.chainscope_p2p_messages (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  sender_uid TEXT NOT NULL,
+  sender_username TEXT NOT NULL,
+  sender_role TEXT NOT NULL DEFAULT 'buyer',
+  kind TEXT NOT NULL DEFAULT 'text',
+  text TEXT NOT NULL DEFAULT '',
+  attachment_image TEXT NOT NULL DEFAULT '',
+  tx_hash TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_chainscope_p2p_messages_order
+  ON public.chainscope_p2p_messages (order_id, created_at ASC);
+
+ALTER TABLE public.chainscope_p2p_payment_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chainscope_p2p_ads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chainscope_p2p_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chainscope_p2p_messages ENABLE ROW LEVEL SECURITY;

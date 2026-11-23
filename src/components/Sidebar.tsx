@@ -1,5 +1,6 @@
 import {
   Activity,
+  ArrowLeftRight,
   Coins,
   Crown,
   Fuel,
@@ -81,6 +82,7 @@ export function Sidebar({
     { id: 'portfolio', label: 'Portfolio & Scanner', icon: Layers },
     { id: 'transactions', label: 'Transaction Ledger', icon: Activity },
     { id: 'csc', label: 'ChainScope Coin (CSC)', icon: Coins },
+    { id: 'p2p', label: 'P2P Exchange', icon: ArrowLeftRight },
     { id: 'launchpad', label: 'Meme Launchpad', icon: Rocket },
     { id: 'markets', label: 'Gas & Markets', icon: Fuel },
     { id: 'import', label: 'Import & Connect', icon: Plus },

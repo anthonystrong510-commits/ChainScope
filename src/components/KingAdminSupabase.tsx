@@ -51,6 +51,10 @@ const TABLE_TABS: Array<{ key: SupabaseTableKey; label: string }> = [
   { key: 'audit_logs', label: 'Audit Logs' },
   { key: 'economics', label: 'Economics' },
   { key: 'wallet_snapshots', label: 'Scans' },
+  { key: 'p2p_payment_profiles', label: 'P2P Rails' },
+  { key: 'p2p_ads', label: 'P2P Ads' },
+  { key: 'p2p_orders', label: 'P2P Orders' },
+  { key: 'p2p_messages', label: 'P2P Chat' },
 ];
 
 function formatCellValue(value: unknown): string {
@@ -228,7 +232,7 @@ export function KingAdminSupabase({
             ) : (
               <RefreshCw className="w-3.5 h-3.5" />
             )}
-            Validate Connection & 13 Tables
+            Validate Connection & Tables
           </button>
         </div>
 
@@ -332,7 +336,7 @@ export function KingAdminSupabase({
             <div>
               <h3 className="text-sm font-semibold">PostgreSQL Schema (supabase/schema.sql)</h3>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Paste into Supabase Dashboard → SQL Editor to provision all 13 RLS-enabled tables.
+                Paste into Supabase Dashboard → SQL Editor to provision all RLS-enabled tables (including P2P escrow & chat).
               </p>
             </div>
             <div className="flex items-center gap-2">

@@ -52,6 +52,29 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
   };
 }
 
+export async function getActiveSessionToken(): Promise<string | null> {
+  const walletToken = getStoredWalletToken();
+  if (walletToken) return walletToken;
+  const user = auth.currentUser;
+  if (!user) return null;
+  try {
+    return await user.getIdToken();
+  } catch {
+    return null;
+  }
+}
+
+export async function getOptionalAuthHeaders(): Promise<Record<string, string>> {
+  const token = await getActiveSessionToken();
+  if (!token) {
+    return { 'Content-Type': 'application/json' };
+  }
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
+}
+
 export async function getLegacyFirestoreDb() {
   const { getFirestore } = await import('firebase/firestore');
   return getFirestore(app, firebaseConfig.firestoreDatabaseId);

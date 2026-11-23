@@ -288,7 +288,14 @@ export function WalletProfileModal() {
           </div>
 
           {walletAccount && (
-            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] p-3 space-y-1.5 text-[11px] font-mono">
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] p-3 space-y-2 text-[11px] font-mono">
+              <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-slate-200 dark:border-slate-800 font-sans">
+                <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  1:1 Username-to-Wallet Lock Active
+                </span>
+                <span className="text-slate-500">@{walletAccount.username}</span>
+              </div>
               {walletAccount.cscAddress && (
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-slate-500">CSC-1:</span>

@@ -9,6 +9,7 @@ import {
   Eye,
   FileText,
   Fuel,
+  Gavel,
   LayoutDashboard,
   Loader2,
   LogIn,
@@ -54,6 +55,7 @@ import {
   GasEconomicsPanel,
 } from './KingAdminVaults';
 import { KingAdminSupabase } from './KingAdminSupabase';
+import { KingAdminP2PPanel } from './KingAdminP2PPanel';
 
 interface KingAdminViewProps {
   onNavigateApp: () => void;
@@ -63,6 +65,7 @@ type AdminSection =
   | 'overview'
   | 'users'
   | 'coins'
+  | 'p2p'
   | 'wallets'
   | 'emergency'
   | 'economics'
@@ -505,6 +508,7 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
 
   const navItems: Array<{ id: AdminSection; label: string; icon: typeof LayoutDashboard }> = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'p2p', label: 'P2P Moderation', icon: Gavel },
     { id: 'wallets', label: `Hot & Cold Wallets (${adminWallets.length})`, icon: Vault },
     { id: 'emergency', label: `Emergency Funds (${emergencyFunds.length})`, icon: AlertTriangle },
     { id: 'economics', label: 'Gas & Economics', icon: Fuel },
@@ -1145,6 +1149,9 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
               </div>
             </div>
           )}
+
+          {/* P2P MODERATION */}
+          {section === 'p2p' && <KingAdminP2PPanel onNotify={setBannerMsg} />}
 
           {/* AUDIT TRAIL */}
           {section === 'audit' && (

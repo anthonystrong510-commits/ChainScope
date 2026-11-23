@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import fs from 'fs';
+import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { ethers } from 'ethers';
@@ -1158,12 +1159,24 @@ async function startServer() {
     res.send(mobileconfig);
   });
 
+  const httpServer = http.createServer(app);
+
   // --- SUPABASE POSTGRESQL PRIMARY DATA ENGINE ---
   registerSupabaseRoutes(app, __dirname, {
+    httpServer,
     verifyWalletChainBalance,
     getSolUsdPrice: async () => {
       const { prices } = await getLivePrices();
       return prices['solana']?.usd || 185;
+    },
+    getLiveSpotPricesUsd: async () => {
+      const { prices } = await getLivePrices();
+      return {
+        tether: prices['tether']?.usd || 1,
+        solana: prices['solana']?.usd || 185,
+        ethereum: prices['ethereum']?.usd || 3100,
+        binancecoin: prices['binancecoin']?.usd || 615,
+      };
     },
   });
 
@@ -1190,7 +1203,7 @@ async function startServer() {
   }
 
   const port = Number(process.env.PORT) || 3000;
-  app.listen(port, '0.0.0.0', () => {
+  httpServer.listen(port, '0.0.0.0', () => {
     console.log(`ChainScope server listening on http://0.0.0.0:${port}`);
   });
 }

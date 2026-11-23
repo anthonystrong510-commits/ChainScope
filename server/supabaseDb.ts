@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import fs from 'fs';
+import type { Server as HttpServer } from 'http';
 import path from 'path';
 import type { Express, NextFunction, Request, Response } from 'express';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -20,6 +21,7 @@ import {
   TOTAL_SUPPLY,
 } from '../src/utils/bondingCurve.ts';
 import { registerCscRoutes } from './cscSystem.ts';
+import { registerP2PRoutes } from './p2pSystem.ts';
 import {
   registerWalletAuthRoutes,
   resolveUnifiedUidForGoogle,
@@ -459,6 +461,8 @@ export interface SupabaseRouteDeps {
     address: string
   ) => Promise<VerifyWalletChainBalanceResult>;
   getSolUsdPrice?: () => Promise<number>;
+  getLiveSpotPricesUsd?: () => Promise<Record<string, number>>;
+  httpServer?: HttpServer;
 }
 
 const SUPABASE_TABLE_MAP: Record<string, { table: string; orderCol: string }> = {
@@ -475,6 +479,10 @@ const SUPABASE_TABLE_MAP: Record<string, { table: string; orderCol: string }> = 
   audit_logs: { table: 'chainscope_admin_audit_logs', orderCol: 'created_at' },
   economics: { table: 'chainscope_platform_economics', orderCol: 'updated_at' },
   wallet_snapshots: { table: 'chainscope_wallet_snapshots', orderCol: 'scanned_at' },
+  p2p_payment_profiles: { table: 'chainscope_p2p_payment_profiles', orderCol: 'updated_at' },
+  p2p_ads: { table: 'chainscope_p2p_ads', orderCol: 'updated_at' },
+  p2p_orders: { table: 'chainscope_p2p_orders', orderCol: 'updated_at' },
+  p2p_messages: { table: 'chainscope_p2p_messages', orderCol: 'created_at' },
 };
 
 export function registerSupabaseRoutes(
@@ -3158,6 +3166,22 @@ export function registerSupabaseRoutes(
         }
       }
       return 185;
+    },
+  });
+
+  // --- DECENTRALIZED PROOF-BASED P2P EXCHANGE & WEBSOCKET CHAT ---
+  registerP2PRoutes(app, {
+    httpServer: deps.httpServer,
+    getSupabaseAdminClient,
+    authenticateToken,
+    requireAuth,
+    requireAdmin,
+    isUserAdmin: checkIsAdmin,
+    getLiveSpotPricesUsd: async () => {
+      if (deps.getLiveSpotPricesUsd) {
+        return deps.getLiveSpotPricesUsd();
+      }
+      return { tether: 1, solana: 185, ethereum: 3100, binancecoin: 615 };
     },
   });
 }
