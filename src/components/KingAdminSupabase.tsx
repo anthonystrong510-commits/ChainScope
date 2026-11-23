@@ -195,7 +195,7 @@ export function KingAdminSupabase({
   return (
     <div className="space-y-6">
       {/* Live Supabase Connection Validation Panel */}
-      <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4">
+      <div className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div
@@ -268,7 +268,7 @@ export function KingAdminSupabase({
 
       {/* Top Row: Primary DB Overview + Legacy Importer + Schema SQL */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        <div className="lg:col-span-5 p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4">
+        <div className="lg:col-span-5 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4">
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
               <Database className="w-4 h-4" />
@@ -384,14 +384,14 @@ export function KingAdminSupabase({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17] text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17] text-xs overflow-x-auto no-scrollbar w-full sm:flex-1">
               {TABLE_TABS.map((tab) => (
                 <button
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveTable(tab.key)}
-                  className={`px-2.5 py-1 rounded font-medium transition-colors ${
+                  className={`px-2.5 py-1.5 rounded font-medium transition-colors whitespace-nowrap shrink-0 ${
                     activeTable === tab.key
                       ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
                       : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -406,7 +406,7 @@ export function KingAdminSupabase({
               type="button"
               onClick={() => void loadTable(activeTable)}
               disabled={loadingRows}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium shrink-0 self-start sm:self-auto"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loadingRows ? 'animate-spin' : ''}`} />
               Refresh

@@ -239,43 +239,45 @@ export function SeedStudioView({ onImportGeneratedWallet }: SeedStudioViewProps)
       </div>
 
       {/* Generation Mode Tabs */}
-      <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#111827] border border-slate-200 dark:border-slate-800 w-fit">
-        <button
-          type="button"
-          onClick={() => setStudioMode('csprng')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-            studioMode === 'csprng'
-              ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-          }`}
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Instant CSPRNG
-        </button>
-        <button
-          type="button"
-          onClick={() => setStudioMode('entropy-pad')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-            studioMode === 'entropy-pad'
-              ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-          }`}
-        >
-          <MousePointerClick className="w-3.5 h-3.5" />
-          Manual Entropy & Dice
-        </button>
-        <button
-          type="button"
-          onClick={() => setStudioMode('manual-builder')}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-            studioMode === 'manual-builder'
-              ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-          }`}
-        >
-          <KeyRound className="w-3.5 h-3.5" />
-          Manual Word Picker + Checksum
-        </button>
+      <div className="w-full overflow-x-auto no-scrollbar">
+        <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#111827] border border-slate-200 dark:border-slate-800 min-w-max">
+          <button
+            type="button"
+            onClick={() => setStudioMode('csprng')}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+              studioMode === 'csprng'
+                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Instant CSPRNG
+          </button>
+          <button
+            type="button"
+            onClick={() => setStudioMode('entropy-pad')}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+              studioMode === 'entropy-pad'
+                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <MousePointerClick className="w-3.5 h-3.5" />
+            Manual Entropy & Dice
+          </button>
+          <button
+            type="button"
+            onClick={() => setStudioMode('manual-builder')}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+              studioMode === 'manual-builder'
+                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            Manual Word Picker + Checksum
+          </button>
+        </div>
       </div>
 
       {/* Mode 1: Instant CSPRNG Controls */}
@@ -651,9 +653,9 @@ export function SeedStudioView({ onImportGeneratedWallet }: SeedStudioViewProps)
             </div>
 
             {/* Action Bar: Import to Dashboard OR Export Encrypted Keystore */}
-            <div className="pt-2 flex flex-wrap items-end justify-between gap-4">
-              <div className="flex flex-wrap items-end gap-2.5">
-                <div>
+            <div className="pt-2 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-end gap-2.5">
+                <div className="w-full sm:w-48">
                   <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
                     Profile Label
                   </label>
@@ -661,21 +663,21 @@ export function SeedStudioView({ onImportGeneratedWallet }: SeedStudioViewProps)
                     type="text"
                     value={walletLabel}
                     onChange={(e) => setWalletLabel(e.target.value)}
-                    className="px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 w-48"
+                    className="px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 w-full"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={handleImportToDashboard}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors"
                 >
                   <Wallet className="w-3.5 h-3.5" />
                   Import to Dashboard & Scan Now
                 </button>
               </div>
 
-              <div className="flex flex-wrap items-end gap-2">
-                <div>
+              <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+                <div className="w-full sm:w-44">
                   <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
                     Keystore Export Password
                   </label>
@@ -684,14 +686,14 @@ export function SeedStudioView({ onImportGeneratedWallet }: SeedStudioViewProps)
                     value={exportPass}
                     onChange={(e) => setExportPass(e.target.value)}
                     placeholder="Password to encrypt"
-                    className="px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 w-44"
+                    className="px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 w-full"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={handleDownloadKeystore}
                   disabled={!exportPass || exporting}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors"
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
                   {exporting ? 'Encrypting…' : 'Export Keystore JSON'}

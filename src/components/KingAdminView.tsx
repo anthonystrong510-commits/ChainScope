@@ -14,6 +14,7 @@ import {
   Loader2,
   LogIn,
   LogOut,
+  Menu,
   Pencil,
   Search,
   ShieldAlert,
@@ -98,6 +99,7 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
   } = useAuth();
 
   const [section, setSection] = useState<AdminSection>('overview');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [coins, setCoins] = useState<MemeCoin[]>([]);
   const [adminWallets, setAdminWallets] = useState<AdminWallet[]>([]);
@@ -522,10 +524,22 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
   const sectionTitle = navItems.find((n) => n.id === section)?.label.split(' (')[0] || 'Overview';
 
   return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100">
-      {/* Left Admin Sidebar */}
-      <aside className="w-[248px] shrink-0 bg-white dark:bg-[#0F1521] border-r border-slate-200 dark:border-slate-800 flex flex-col">
-        <div className="h-16 px-5 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
+    <div className="min-h-screen flex bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 overflow-x-hidden">
+      {/* Mobile Sidebar Backdrop */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs lg:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
+      {/* Left Admin Sidebar (Drawer on Mobile, Static on Desktop) */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-[264px] max-w-[85vw] shrink-0 bg-white dark:bg-[#0F1521] border-r border-slate-200 dark:border-slate-800 flex flex-col transition-transform duration-200 lg:static lg:translate-x-0 ${
+          mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="h-14 sm:h-16 px-4 sm:px-5 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
             <span className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center text-slate-950 shrink-0">
               <Crown className="w-4 h-4" />
@@ -534,9 +548,17 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
               KingAdmin
             </span>
           </div>
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(false)}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden"
+            aria-label="Close admin menu"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        <nav className="p-3 space-y-1 flex-1">
+        <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = section === item.id;
@@ -544,21 +566,24 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setSection(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                onClick={() => {
+                  setSection(item.id);
+                  setMobileNavOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 min-h-[44px] lg:min-h-0 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
                   active
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                <span>{item.label}</span>
+                <span className="truncate">{item.label}</span>
               </button>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-2 text-[11px] text-slate-500 dark:text-slate-400">
+        <div className="p-4 pb-safe border-t border-slate-200 dark:border-slate-800 space-y-2 text-[11px] text-slate-500 dark:text-slate-400">
           <div className="font-medium text-slate-700 dark:text-slate-300 truncate">
             {user.email}
           </div>
@@ -568,36 +593,48 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
 
       {/* Main Admin Workspace */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="h-16 px-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0F1521] flex items-center justify-between gap-4 shrink-0">
+        <header className="sticky top-0 z-30 h-14 sm:h-16 px-3 sm:px-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0F1521] flex items-center justify-between gap-2 sm:gap-4 shrink-0">
           <div className="flex items-center gap-2 text-sm min-w-0">
-            <span className="font-semibold">KingAdmin</span>
-            <span className="text-slate-400" aria-hidden="true">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              className="lg:hidden min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shrink-0"
+              aria-label="Open KingAdmin navigation"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+            <span className="font-semibold hidden sm:inline">KingAdmin</span>
+            <span className="text-slate-400 hidden sm:inline" aria-hidden="true">
               /
             </span>
-            <span className="text-slate-500 dark:text-slate-400 truncate">{sectionTitle}</span>
+            <span className="text-slate-700 dark:text-slate-200 sm:text-slate-500 dark:sm:text-slate-400 font-semibold sm:font-normal truncate">
+              {sectionTitle}
+            </span>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={onNavigateApp}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium whitespace-nowrap transition-colors"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium whitespace-nowrap transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Back to App
+              <span className="hidden sm:inline">Back to App</span>
+              <span className="sm:hidden">App</span>
             </button>
             <button
               type="button"
               onClick={() => void signOutUser()}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-medium whitespace-nowrap transition-colors"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-medium whitespace-nowrap transition-colors"
+              aria-label="Sign Out"
             >
               <LogOut className="w-3.5 h-3.5" />
-              Sign Out
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </header>
 
-        <main className="flex-1 p-6 max-w-[1440px] w-full mx-auto space-y-6">
+        <main className="flex-1 p-3 sm:p-6 pb-safe max-w-[1440px] w-full mx-auto space-y-5 sm:space-y-6">
           {(dbError || adminLoadError) && (
             <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-700 dark:text-amber-300 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
@@ -831,19 +868,57 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
                     Inspect trader profiles, edit handles, or adjust bonding-curve SOL liquidity.
                   </p>
                 </div>
-                <div className="relative">
+                <div className="relative w-full sm:w-auto">
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={userSearch}
                     onChange={(e) => setUserSearch(e.target.value)}
                     placeholder="Search @handle, UID, wallet…"
-                    className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] w-60"
+                    className="pl-8 pr-3 py-2 sm:py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] w-full sm:w-60"
                   />
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
+              {/* Mobile Trader Cards */}
+              <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+                {filteredUsers.map((u) => (
+                  <div key={u.uid} className="p-4 space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+                          @{u.handle}
+                        </div>
+                        <div className="text-[11px] text-slate-500 truncate">{u.displayName}</div>
+                      </div>
+                      <div className="text-right font-mono font-semibold tabular-nums shrink-0">
+                        {u.solBalance.toFixed(4)} SOL
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 font-mono">
+                      <span>UID: {truncateAddress(u.uid, 6, 4)}</span>
+                      <span>
+                        {u.linkedWallet ? truncateAddress(u.linkedWallet, 5, 4) : 'No wallet'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <span className="text-[11px] text-slate-500 tabular-nums">
+                        Joined {formatTimestamp(toMillis(u.createdAt))}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => openUserModal(u)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium"
+                      >
+                        <SlidersHorizontal className="w-3 h-3" />
+                        Manage
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
@@ -905,19 +980,84 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
                     remove spam launches.
                   </p>
                 </div>
-                <div className="relative">
+                <div className="relative w-full sm:w-auto">
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={coinSearch}
                     onChange={(e) => setCoinSearch(e.target.value)}
                     placeholder="Search coin, $TICKER, @creator…"
-                    className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] w-60"
+                    className="pl-8 pr-3 py-2 sm:py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] w-full sm:w-60"
                   />
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
+              {/* Mobile Meme Coins Cards */}
+              <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+                {filteredCoins.map((c) => (
+                  <div key={c.id} className="p-4 space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <CoinEmblem icon={c.emblemIcon} color={c.emblemColor} size="sm" />
+                        <div className="min-w-0">
+                          <div className="font-semibold truncate">
+                            {c.name}{' '}
+                            <span className="font-mono text-blue-500">${c.ticker}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 truncate">
+                            @{c.creatorHandle} · {c.mode === 'mayhem' ? 'Mayhem' : 'Standard'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right font-mono tabular-nums shrink-0">
+                        <div className="font-semibold">{c.marketCapSol.toFixed(2)} SOL</div>
+                        <div className="text-[11px]">
+                          {c.graduated ? (
+                            <span className="text-emerald-500 font-semibold">Graduated</span>
+                          ) : (
+                            <span className="text-slate-500">
+                              {getBondingProgressPct(c.realSol, c.mode || 'standard').toFixed(1)}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <span className="text-[11px] font-mono text-slate-500 tabular-nums">
+                        Vol: {c.volumeSol.toFixed(2)} SOL
+                      </span>
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setInspectCoin(c)}
+                          className="p-2 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          aria-label={`Inspect ${c.name}`}
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openCoinModal(c)}
+                          className="p-2 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          aria-label={`Edit ${c.name}`}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteCoin(c)}
+                          className="p-2 rounded border border-red-500/30 text-red-500 hover:bg-red-500/10"
+                          aria-label={`Delete ${c.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
@@ -1014,7 +1154,7 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
           {/* ADMIN ACCESS CONTROL */}
           {section === 'access' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-              <div className="lg:col-span-5 p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4">
+              <div className="lg:col-span-5 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4">
                 <div>
                   <h2 className="text-sm font-semibold">Grant KingAdmin Role</h2>
                   <p className="text-xs text-slate-500 mt-0.5">
@@ -1061,7 +1201,7 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
                         Handle Label
@@ -1164,19 +1304,46 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
                     change, and RBAC grant.
                   </p>
                 </div>
-                <div className="relative">
+                <div className="relative w-full sm:w-auto">
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={auditSearch}
                     onChange={(e) => setAuditSearch(e.target.value)}
                     placeholder="Filter action, actor, target…"
-                    className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] w-60"
+                    className="pl-8 pr-3 py-2 sm:py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] w-full sm:w-60"
                   />
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
+              {/* Mobile Audit Cards */}
+              <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+                {filteredAudit.map((l) => (
+                  <div key={l.id} className="p-4 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-semibold text-blue-600 dark:text-blue-400 truncate">
+                        {l.action}
+                      </span>
+                      <span className="text-[11px] text-slate-500 tabular-nums shrink-0">
+                        {formatTimestamp(toMillis(l.createdAt))}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-mono">
+                      @{l.actorHandle} → {truncateAddress(l.targetId, 6, 4)}
+                    </div>
+                    <div className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                      {l.details}
+                    </div>
+                  </div>
+                ))}
+                {filteredAudit.length === 0 && (
+                  <div className="py-10 text-center text-slate-500">
+                    No audit entries match your search.
+                  </div>
+                )}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
@@ -1221,11 +1388,11 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
       {/* MODAL: MANAGE USER BALANCE & PROFILE */}
       {editingUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-5">
+          <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold">Manage @{editingUser.handle}</h3>
               <button
@@ -1315,11 +1482,11 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
       {/* MODAL: EDIT MEME COIN */}
       {editingCoin && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-4">
+          <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold">
                 Edit {editingCoin.name} (${editingCoin.ticker})
@@ -1397,19 +1564,19 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
       {/* MODAL: INSPECT COIN TRADES & MODERATE COMMENTS */}
       {inspectCoin && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-2xl max-h-[88vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-5">
+          <div className="w-full max-w-2xl max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <CoinEmblem
                   icon={inspectCoin.emblemIcon}
                   color={inspectCoin.emblemColor}
                   size="sm"
                 />
-                <h3 className="text-base font-semibold">
+                <h3 className="text-base font-semibold truncate">
                   Inspect {inspectCoin.name} (${inspectCoin.ticker})
                 </h3>
               </div>
@@ -1426,7 +1593,7 @@ export function KingAdminView({ onNavigateApp }: KingAdminViewProps) {
               <div className="text-xs font-semibold mb-2">
                 Recent Bonding-Curve Swaps ({inspectTrades.length})
               </div>
-              <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] text-[11px] text-slate-500">

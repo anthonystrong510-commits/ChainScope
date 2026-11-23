@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Lock, Menu, Plus, RefreshCw, Rocket } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  Coins,
+  Layers,
+  Lock,
+  Menu,
+  Plus,
+  RefreshCw,
+  Rocket,
+} from 'lucide-react';
 import type { ActiveTab, ChainScanResult, WalletEntry, WalletScanState } from './types/wallet';
 import { scanWalletAllChains } from './services/scanner';
 import { syncWalletSnapshotToSupabase } from './services/supabaseSync';
@@ -331,7 +340,7 @@ function ChainScopeShell() {
   }
 
   return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen flex bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 overflow-x-hidden">
       <Sidebar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
@@ -354,36 +363,36 @@ function ChainScopeShell() {
 
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Top Bar Contract: Contextual Breadcrumb Left — Max 2 Primary Actions Right */}
-        <header className="h-16 px-4 sm:px-6 border-b border-slate-200 dark:border-slate-800/90 bg-white dark:bg-[#0F1521] flex items-center justify-between gap-4 shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
+        <header className="h-14 sm:h-16 px-3 sm:px-6 border-b border-slate-200 dark:border-slate-800/90 bg-white dark:bg-[#0F1521] flex items-center justify-between gap-2 sm:gap-4 shrink-0 sticky top-0 z-30 lg:static">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="lg:hidden min-w-[44px] min-h-[44px] -ml-1.5 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
               aria-label="Open navigation menu"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-2 text-sm min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm min-w-0">
               <span className="font-semibold text-slate-900 dark:text-slate-100 truncate">
                 {breadcrumbTitle}
               </span>
               {(activeTab === 'portfolio' || activeTab === 'transactions') && wallets.length > 0 && (
                 <>
-                  <span className="text-slate-400" aria-hidden="true">
+                  <span className="hidden sm:inline text-slate-400" aria-hidden="true">
                     /
                   </span>
-                  <span className="text-slate-500 dark:text-slate-400 truncate text-xs sm:text-sm">
+                  <span className="hidden sm:inline text-slate-500 dark:text-slate-400 truncate text-xs sm:text-sm">
                     {activeScopeLabel}
                   </span>
                 </>
               )}
               {activeTab === 'launchpad' && user && profile && (
                 <>
-                  <span className="text-slate-400" aria-hidden="true">
+                  <span className="hidden sm:inline text-slate-400" aria-hidden="true">
                     /
                   </span>
-                  <span className="text-slate-500 dark:text-slate-400 truncate text-xs sm:text-sm font-mono tabular-nums">
+                  <span className="hidden sm:inline text-slate-500 dark:text-slate-400 truncate text-xs sm:text-sm font-mono tabular-nums">
                     @{profile.handle} · {profile.solBalance.toFixed(2)} SOL
                   </span>
                 </>
@@ -391,7 +400,7 @@ function ChainScopeShell() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <PWAInstallButton variant="header" />
             {activeTab !== 'launchpad' ? (
               <button
@@ -454,16 +463,19 @@ function ChainScopeShell() {
                     ).toUpperCase()}
                   </span>
                 )}
-                <span>@{walletAccount?.username || profile?.handle || 'wallet'}</span>
+                <span className="max-w-[92px] sm:max-w-none truncate">
+                  @{walletAccount?.username || profile?.handle || 'wallet'}
+                </span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => setShowOnboardingModal(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold whitespace-nowrap shrink-0 transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold whitespace-nowrap shrink-0 transition-colors"
               >
                 <Lock className="w-3.5 h-3.5" />
-                Create / Unlock Wallet
+                <span className="hidden sm:inline">Create / Unlock Wallet</span>
+                <span className="sm:hidden">Wallet</span>
               </button>
             )}
           </div>
@@ -472,7 +484,7 @@ function ChainScopeShell() {
         <OfflineIndicator />
 
         {/* Main Content Viewport */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1440px] w-full mx-auto">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 pb-24 lg:pb-8 max-w-[1440px] w-full mx-auto">
           {activeTab === 'portfolio' && (
             <PortfolioView
               wallets={wallets}
@@ -526,6 +538,51 @@ function ChainScopeShell() {
           )}
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav
+        aria-label="Mobile quick navigation"
+        className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-slate-200 dark:border-slate-800/90 bg-white/95 dark:bg-[#0F1521]/95 backdrop-blur-md pb-safe"
+      >
+        <div className="grid grid-cols-5 h-14">
+          {[
+            { id: 'portfolio' as ActiveTab, label: 'Portfolio', icon: Layers },
+            { id: 'csc' as ActiveTab, label: 'CSC', icon: Coins },
+            { id: 'p2p' as ActiveTab, label: 'P2P', icon: ArrowLeftRight },
+            { id: 'launchpad' as ActiveTab, label: 'Launch', icon: Rocket },
+          ].map((item) => {
+            const Icon = item.icon;
+            const active = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveTab(item.id)}
+                className={`flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${
+                  active
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className={`flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${
+              ['transactions', 'markets', 'import', 'seed-studio'].includes(activeTab)
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <Menu className="w-4 h-4" />
+            <span>More</span>
+          </button>
+        </div>
+      </nav>
 
       {receiveWallet && (
         <ReceiveModal wallet={receiveWallet} onClose={() => setReceiveWallet(null)} />

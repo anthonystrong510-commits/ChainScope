@@ -336,7 +336,7 @@ export function AdminWalletsPanel({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         <form
           onSubmit={handleCreateOrImport}
-          className="lg:col-span-4 p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4"
+          className="lg:col-span-4 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4"
         >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -390,7 +390,7 @@ export function AdminWalletsPanel({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">Storage Tier</label>
               <select
@@ -506,13 +506,13 @@ export function AdminWalletsPanel({
                 Assign vaults to traders, scan real mainnet balances, freeze/unfreeze, or rebalance.
               </p>
             </div>
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17] text-xs">
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17] text-xs overflow-x-auto no-scrollbar max-w-full">
               {(['all', 'hot', 'cold', 'emergency'] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setTierFilter(t)}
-                  className={`px-2.5 py-1 rounded capitalize ${
+                  className={`px-2.5 py-1 rounded capitalize whitespace-nowrap shrink-0 ${
                     tierFilter === t ? 'bg-white dark:bg-slate-800 font-semibold' : 'text-slate-500'
                   }`}
                 >
@@ -522,7 +522,148 @@ export function AdminWalletsPanel({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Mobile Vault Cards */}
+          <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+            {filteredWallets.length === 0 ? (
+              <div className="py-10 px-4 text-center text-slate-500">
+                No admin wallets registered in this tier yet.
+              </div>
+            ) : (
+              filteredWallets.map((w) => {
+                const live = liveBalances[w.id];
+                return (
+                  <div key={w.id} className="p-4 space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-semibold flex items-center gap-1.5 truncate">
+                          <span className="truncate">{w.label}</span>
+                          {w.status === 'frozen' && (
+                            <span className="text-[11px] text-red-500 font-mono shrink-0">FROZEN</span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-500 capitalize">
+                          {w.tier} · {w.origin} ·{' '}
+                          {w.assignedHandle ? (
+                            <span className="font-semibold text-blue-500">@{w.assignedHandle}</span>
+                          ) : (
+                            'Unassigned'
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right font-mono tabular-nums shrink-0">
+                        <div className="font-semibold">{w.treasurySol.toFixed(2)} SOL</div>
+                        {live && (
+                          <div className="text-[11px] text-emerald-500">
+                            Live: {live.sol.toFixed(4)} SOL
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="font-mono text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5">
+                      {w.solanaAddress && (
+                        <div>SOL: {truncateAddress(w.solanaAddress, 8, 6)}</div>
+                      )}
+                      {w.evmAddress && <div>EVM: {truncateAddress(w.evmAddress, 8, 6)}</div>}
+                    </div>
+                    <div className="flex items-center justify-end gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => void handleScanWalletLive(w)}
+                        disabled={scanningId === w.id}
+                        aria-label="Scan live balance"
+                        className="p-2 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        <RefreshCw
+                          className={`w-3.5 h-3.5 ${scanningId === w.id ? 'animate-spin' : ''}`}
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAssigningWallet(w);
+                          setAssignTargetUid(w.assignedUid || '');
+                        }}
+                        aria-label="Assign wallet"
+                        className="p-2 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingWallet(w);
+                          setEditTreasuryVal(String(w.treasurySol));
+                          setEditTierVal(w.tier);
+                        }}
+                        aria-label="Edit treasury"
+                        className="p-2 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        <Wallet className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await adminUpdateWalletStatusAndTreasury(actor, w, {
+                              status: w.status === 'active' ? 'frozen' : 'active',
+                            });
+                            await onMutated?.();
+                            onBanner({
+                              type: 'ok',
+                              text: `Wallet "${w.label}" ${
+                                w.status === 'active' ? 'frozen' : 'unfrozen'
+                              }.`,
+                            });
+                          } catch (err) {
+                            onBanner({
+                              type: 'err',
+                              text:
+                                err instanceof Error
+                                  ? err.message
+                                  : 'Failed to update wallet status',
+                            });
+                          }
+                        }}
+                        aria-label={w.status === 'active' ? 'Freeze wallet' : 'Unfreeze wallet'}
+                        className="p-2 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        {w.status === 'active' ? (
+                          <Lock className="w-3.5 h-3.5 text-amber-500" />
+                        ) : (
+                          <Unlock className="w-3.5 h-3.5 text-emerald-500" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await adminDeleteWallet(actor, w);
+                            await onMutated?.();
+                            onBanner({
+                              type: 'ok',
+                              text: `Removed wallet "${w.label}".`,
+                            });
+                          } catch (err) {
+                            onBanner({
+                              type: 'err',
+                              text:
+                                err instanceof Error ? err.message : 'Failed to delete wallet',
+                            });
+                          }
+                        }}
+                        aria-label="Delete wallet"
+                        className="p-2 rounded border border-red-500/30 text-red-500 hover:bg-red-500/10"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
@@ -687,11 +828,11 @@ export function AdminWalletsPanel({
       {/* ONE-TIME SECRET KEY BACKUP MODAL */}
       {secretBackup && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/75 backdrop-blur-xs p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-lg rounded-xl border border-amber-500/40 bg-white dark:bg-[#111827] p-6 space-y-4">
+          <div className="w-full max-w-lg max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-amber-500/40 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs font-semibold text-amber-500 flex items-center gap-1.5">
@@ -757,11 +898,11 @@ export function AdminWalletsPanel({
       {/* ASSIGN WALLET MODAL */}
       {assigningWallet && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-4">
+          <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold">Assign "{assigningWallet.label}"</h3>
               <button
@@ -811,11 +952,11 @@ export function AdminWalletsPanel({
       {/* EDIT WALLET TREASURY / TIER MODAL */}
       {editingWallet && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-4">
+          <div className="w-full max-w-sm max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold">Edit "{editingWallet.label}"</h3>
               <button
@@ -981,7 +1122,7 @@ export function EmergencyFundsPanel({
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
       <form
         onSubmit={handleCreateFund}
-        className="lg:col-span-4 p-5 rounded-xl border border-red-500/30 bg-white dark:bg-[#111827] space-y-4"
+        className="lg:col-span-4 p-4 sm:p-5 rounded-xl border border-red-500/30 bg-white dark:bg-[#111827] space-y-4"
       >
         <div>
           <h3 className="text-sm font-semibold flex items-center gap-2 text-red-500">
@@ -1020,7 +1161,7 @@ export function EmergencyFundsPanel({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">
               Allocation (SOL)
@@ -1077,7 +1218,7 @@ export function EmergencyFundsPanel({
             return (
               <div
                 key={fund.id}
-                className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-3"
+                className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-3"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -1112,7 +1253,7 @@ export function EmergencyFundsPanel({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 text-xs tabular-nums">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 text-xs tabular-nums">
                   <div>
                     <div className="text-slate-500 text-[11px]">Allocated</div>
                     <div className="font-mono font-semibold">{fund.allocatedSol.toFixed(2)} SOL</div>
@@ -1143,11 +1284,11 @@ export function EmergencyFundsPanel({
       {/* DISBURSE MODAL */}
       {disbursingFund && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-4">
+          <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold">Disburse: {disbursingFund.name}</h3>
               <button
@@ -1206,7 +1347,7 @@ export function EmergencyFundsPanel({
               </select>
             )}
 
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Amount (SOL)</label>
                 <input
@@ -1318,7 +1459,7 @@ export function GasEconomicsPanel({
   return (
     <form
       onSubmit={handleSave}
-      className="p-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-6"
+      className="p-4 sm:p-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-5 sm:space-y-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

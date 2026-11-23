@@ -27,12 +27,12 @@ export function ReceiveModal({ wallet, onClose }: ReceiveModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label={`Receive addresses for ${wallet.label}`}
     >
-      <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6">
+      <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe">
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">

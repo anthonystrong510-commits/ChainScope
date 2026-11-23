@@ -669,7 +669,7 @@ export function P2PView({ wallets }: P2PViewProps) {
   return (
     <div className="space-y-6">
       {/* Top Header Strip */}
-      <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] flex flex-wrap items-center justify-between gap-4">
+      <div className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-1 max-w-2xl">
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
@@ -684,7 +684,7 @@ export function P2PView({ wallets }: P2PViewProps) {
               {overview?.stats.paymentMethodsCount || getAllPaymentMethodsCount()}+ Payment Rails
             </span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100">
             Decentralized Peer-to-Peer Exchange
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
@@ -693,18 +693,18 @@ export function P2PView({ wallets }: P2PViewProps) {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0">
           <button
             type="button"
             onClick={() => setShowCountryScanner((v) => !v)}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs font-medium whitespace-nowrap transition-colors ${
+            className={`inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg border text-xs font-medium whitespace-nowrap transition-colors min-h-[38px] ${
               showCountryScanner
                 ? 'border-blue-500 bg-blue-600/10 text-blue-600 dark:text-blue-400'
                 : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <Compass className="w-3.5 h-3.5" />
-            Country &amp; Currency Scanner
+            <span>Country Scanner</span>
           </button>
 
           <button
@@ -716,10 +716,10 @@ export function P2PView({ wallets }: P2PViewProps) {
               }
               setShowPaymentsModal(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium whitespace-nowrap min-h-[38px]"
           >
             <CreditCard className="w-3.5 h-3.5" />
-            Payment Methods ({myPaymentProfiles.length})
+            <span>Payment Methods ({myPaymentProfiles.length})</span>
           </button>
 
           <button
@@ -728,10 +728,10 @@ export function P2PView({ wallets }: P2PViewProps) {
               if (!handleWalletBindRedirect()) return;
               setShowPostAdModal(true);
             }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold whitespace-nowrap min-h-[38px] flex-1 sm:flex-none"
           >
             <Plus className="w-3.5 h-3.5" />
-            Post P2P Offer
+            <span>Post P2P Offer</span>
           </button>
         </div>
       </div>
@@ -918,12 +918,12 @@ export function P2PView({ wallets }: P2PViewProps) {
       )}
 
       {/* Sub-Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#111827] border border-slate-200 dark:border-slate-800 text-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#111827] border border-slate-200 dark:border-slate-800 text-xs overflow-x-auto no-scrollbar w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setSubTab('market')}
-            className={`px-3.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap shrink-0 ${
               subTab === 'market'
                 ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -934,7 +934,7 @@ export function P2PView({ wallets }: P2PViewProps) {
           <button
             type="button"
             onClick={() => setSubTab('private')}
-            className={`px-3.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 ${
               subTab === 'private'
                 ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -951,7 +951,7 @@ export function P2PView({ wallets }: P2PViewProps) {
           <button
             type="button"
             onClick={() => setSubTab('orders')}
-            className={`px-3.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap shrink-0 ${
               subTab === 'orders'
                 ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -962,7 +962,7 @@ export function P2PView({ wallets }: P2PViewProps) {
           <button
             type="button"
             onClick={() => setSubTab('my_ads')}
-            className={`px-3.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap shrink-0 ${
               subTab === 'my_ads'
                 ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -976,7 +976,7 @@ export function P2PView({ wallets }: P2PViewProps) {
           type="button"
           onClick={() => void loadOverview()}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium"
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium self-end sm:self-auto shrink-0"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           Refresh
@@ -1012,8 +1012,8 @@ export function P2PView({ wallets }: P2PViewProps) {
 
           {/* Filter Controls Bar */}
           <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17] text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="grid grid-cols-2 sm:flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17] text-xs w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setIntentTab('buy')}
@@ -1038,13 +1038,13 @@ export function P2PView({ wallets }: P2PViewProps) {
                 </button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17] text-xs">
+              <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17] text-xs overflow-x-auto no-scrollbar w-full sm:w-auto">
                 {P2P_ASSETS.map((a) => (
                   <button
                     key={a}
                     type="button"
                     onClick={() => setAssetFilter(a)}
-                    className={`px-3 py-1.5 rounded-md font-mono font-semibold transition-colors whitespace-nowrap ${
+                    className={`px-3 py-1.5 rounded-md font-mono font-semibold transition-colors whitespace-nowrap shrink-0 ${
                       assetFilter === a
                         ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
                         : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -1176,118 +1176,196 @@ export function P2PView({ wallets }: P2PViewProps) {
                 </button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
-                      <th className="py-3 px-4 font-medium">Maker (1:1 Wallet)</th>
-                      <th className="py-3 px-4 font-medium">Unit Price</th>
-                      <th className="py-3 px-4 font-medium">Available &amp; Limits</th>
-                      <th className="py-3 px-4 font-medium">Payment Methods</th>
-                      <th className="py-3 px-4 font-medium text-right">Trade</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                    {filteredAds.map((ad) => {
-                      const isOwn = user?.uid === ad.makerUid;
-                      const buyBlocked =
-                        intentTab === 'buy' &&
-                        Boolean(user && buyEligibility && !buyEligibility.canBuy);
-                      return (
-                        <tr
-                          key={ad.id}
-                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
-                        >
-                          <td className="py-3.5 px-4 align-top">
+              <>
+                {/* Mobile Offer Cards */}
+                <div className="md:hidden divide-y divide-slate-200 dark:divide-slate-800">
+                  {filteredAds.map((ad) => {
+                    const isOwn = user?.uid === ad.makerUid;
+                    const buyBlocked =
+                      intentTab === 'buy' &&
+                      Boolean(user && buyEligibility && !buyEligibility.canBuy);
+                    return (
+                      <div key={ad.id} className="p-4 space-y-3 text-xs">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
                             <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                              <span>@{ad.makerUsername}</span>
+                              <span className="truncate">@{ad.makerUsername}</span>
                               {ad.makerStats.verifiedWallet && (
-                                <span title="1:1 Verified Bound Wallet" className="inline-flex">
-                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                                </span>
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                               )}
                             </div>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
-                              {truncateAddress(ad.makerWalletAddress, 6, 4)}
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5 tabular-nums">
+                              {ad.makerStats.completedOrders} orders · {ad.makerStats.completionRatePct}% · ~
+                              {ad.makerStats.avgReleaseMins}m
                             </div>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono tabular-nums">
-                              {ad.makerStats.completedOrders} orders ·{' '}
-                              {ad.makerStats.completionRatePct}% · ~{ad.makerStats.avgReleaseMins}m
-                            </div>
-                          </td>
-
-                          <td className="py-3.5 px-4 align-top">
-                            <div className="text-sm font-bold font-mono tabular-nums text-slate-900 dark:text-slate-100">
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-base font-bold font-mono tabular-nums text-slate-900 dark:text-slate-100">
                               {formatFiatAmount(ad.effectivePriceFiat, ad.fiatCurrency)}
                             </div>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                              per {ad.asset} ·{' '}
-                              {ad.priceType === 'floating'
-                                ? `Float ${ad.floatingMarginPct >= 0 ? '+' : ''}${
-                                    ad.floatingMarginPct
-                                  }%`
-                                : 'Fixed'}
-                            </div>
-                          </td>
+                            <div className="text-[11px] text-slate-500">per {ad.asset}</div>
+                          </div>
+                        </div>
 
-                          <td className="py-3.5 px-4 align-top font-mono tabular-nums">
-                            <div className="text-slate-900 dark:text-slate-100 font-medium flex items-center gap-1.5">
-                              <span>
-                                {ad.availableCryptoAmount.toFixed(4)} {ad.asset}
-                              </span>
-                              {ad.preFundedEscrow && (
-                                <span
-                                  title="Pre-Funded Escrow Deposited Upfront"
-                                  className="text-[10px] font-sans text-emerald-600 dark:text-emerald-400"
-                                >
-                                  (Escrow Funded)
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        <div className="grid grid-cols-2 gap-2 text-[11px] font-mono tabular-nums p-2.5 rounded-lg bg-slate-50 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800">
+                          <div>
+                            <span className="font-sans text-slate-500 block">Available</span>
+                            <span className="font-semibold text-slate-900 dark:text-slate-100">
+                              {ad.availableCryptoAmount.toFixed(4)} {ad.asset}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-sans text-slate-500 block">Limits</span>
+                            <span className="font-semibold text-slate-900 dark:text-slate-100">
                               {formatFiatAmount(ad.minFiatOrder, ad.fiatCurrency)} –{' '}
                               {formatFiatAmount(ad.maxFiatOrder, ad.fiatCurrency)}
-                            </div>
-                          </td>
+                            </span>
+                          </div>
+                        </div>
 
-                          <td className="py-3.5 px-4 align-top max-w-[260px]">
-                            <div className="text-slate-700 dark:text-slate-300 leading-relaxed">
-                              {ad.paymentMethodNames.join(' · ')}
-                            </div>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {ad.paymentWindowMins}m window · {getCountryByCode(ad.countryCode).name}
-                            </div>
-                          </td>
+                        <div className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                          {ad.paymentMethodNames.join(' · ')}
+                        </div>
 
-                          <td className="py-3.5 px-4 align-top text-right">
-                            <button
-                              type="button"
-                              disabled={isOwn}
-                              onClick={() => handleOpenTradeModal(ad)}
-                              className={`px-4 py-2 rounded-lg text-xs font-semibold text-white whitespace-nowrap transition-colors disabled:opacity-40 ${
-                                buyBlocked
-                                  ? 'bg-slate-600 hover:bg-slate-700'
+                        <button
+                          type="button"
+                          disabled={isOwn}
+                          onClick={() => handleOpenTradeModal(ad)}
+                          className={`w-full py-2.5 px-4 rounded-lg text-xs font-semibold text-white transition-colors disabled:opacity-40 min-h-[42px] ${
+                            buyBlocked
+                              ? 'bg-slate-600 hover:bg-slate-700'
+                              : intentTab === 'buy'
+                              ? 'bg-emerald-600 hover:bg-emerald-700'
+                              : 'bg-amber-600 hover:bg-amber-700'
+                          }`}
+                        >
+                          {isOwn
+                            ? 'Your Ad'
+                            : buyBlocked
+                            ? `Need ${buyGateMin} Trades`
+                            : intentTab === 'buy'
+                            ? `Buy ${ad.asset}`
+                            : `Sell ${ad.asset}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop Orderbook Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+                        <th className="py-3 px-4 font-medium">Maker (1:1 Wallet)</th>
+                        <th className="py-3 px-4 font-medium">Unit Price</th>
+                        <th className="py-3 px-4 font-medium">Available &amp; Limits</th>
+                        <th className="py-3 px-4 font-medium">Payment Methods</th>
+                        <th className="py-3 px-4 font-medium text-right">Trade</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                      {filteredAds.map((ad) => {
+                        const isOwn = user?.uid === ad.makerUid;
+                        const buyBlocked =
+                          intentTab === 'buy' &&
+                          Boolean(user && buyEligibility && !buyEligibility.canBuy);
+                        return (
+                          <tr
+                            key={ad.id}
+                            className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                          >
+                            <td className="py-3.5 px-4 align-top">
+                              <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                                <span>@{ad.makerUsername}</span>
+                                {ad.makerStats.verifiedWallet && (
+                                  <span title="1:1 Verified Bound Wallet" className="inline-flex">
+                                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
+                                {truncateAddress(ad.makerWalletAddress, 6, 4)}
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono tabular-nums">
+                                {ad.makerStats.completedOrders} orders ·{' '}
+                                {ad.makerStats.completionRatePct}% · ~{ad.makerStats.avgReleaseMins}m
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4 align-top">
+                              <div className="text-sm font-bold font-mono tabular-nums text-slate-900 dark:text-slate-100">
+                                {formatFiatAmount(ad.effectivePriceFiat, ad.fiatCurrency)}
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                per {ad.asset} ·{' '}
+                                {ad.priceType === 'floating'
+                                  ? `Float ${ad.floatingMarginPct >= 0 ? '+' : ''}${
+                                      ad.floatingMarginPct
+                                    }%`
+                                  : 'Fixed'}
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4 align-top font-mono tabular-nums">
+                              <div className="text-slate-900 dark:text-slate-100 font-medium flex items-center gap-1.5">
+                                <span>
+                                  {ad.availableCryptoAmount.toFixed(4)} {ad.asset}
+                                </span>
+                                {ad.preFundedEscrow && (
+                                  <span
+                                    title="Pre-Funded Escrow Deposited Upfront"
+                                    className="text-[10px] font-sans text-emerald-600 dark:text-emerald-400"
+                                  >
+                                    (Escrow Funded)
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                {formatFiatAmount(ad.minFiatOrder, ad.fiatCurrency)} –{' '}
+                                {formatFiatAmount(ad.maxFiatOrder, ad.fiatCurrency)}
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4 align-top max-w-[260px]">
+                              <div className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                                {ad.paymentMethodNames.join(' · ')}
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {ad.paymentWindowMins}m window · {getCountryByCode(ad.countryCode).name}
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4 align-top text-right">
+                              <button
+                                type="button"
+                                disabled={isOwn}
+                                onClick={() => handleOpenTradeModal(ad)}
+                                className={`px-4 py-2 rounded-lg text-xs font-semibold text-white whitespace-nowrap transition-colors disabled:opacity-40 ${
+                                  buyBlocked
+                                    ? 'bg-slate-600 hover:bg-slate-700'
+                                    : intentTab === 'buy'
+                                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                                    : 'bg-amber-600 hover:bg-amber-700'
+                                }`}
+                              >
+                                {isOwn
+                                  ? 'Your Ad'
+                                  : buyBlocked
+                                  ? `Need ${buyGateMin} Trades`
                                   : intentTab === 'buy'
-                                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                                  : 'bg-amber-600 hover:bg-amber-700'
-                              }`}
-                            >
-                              {isOwn
-                                ? 'Your Ad'
-                                : buyBlocked
-                                ? `Need ${buyGateMin} Trades`
-                                : intentTab === 'buy'
-                                ? `Buy ${ad.asset}`
-                                : `Sell ${ad.asset}`}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                                  ? `Buy ${ad.asset}`
+                                  : `Sell ${ad.asset}`}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -1297,7 +1375,7 @@ export function P2PView({ wallets }: P2PViewProps) {
       {subTab === 'private' && (
         <div className="space-y-5">
           {/* Private Offer Lookup */}
-          <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4">
+          <div className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4">
             <div>
               <h3 className="text-sm font-bold flex items-center gap-2">
                 <KeyRound className="w-4 h-4 text-blue-500" />
@@ -1310,19 +1388,19 @@ export function P2PView({ wallets }: P2PViewProps) {
               </p>
             </div>
 
-            <form onSubmit={(e) => void handleSearchPrivateAds(e)} className="flex flex-wrap gap-2">
+            <form onSubmit={(e) => void handleSearchPrivateAds(e)} className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 required
                 value={privateLookupQuery}
                 onChange={(e) => setPrivateLookupQuery(e.target.value)}
                 placeholder="Enter Private Code (PRIV-...) or @username"
-                className="flex-1 min-w-[220px] px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] text-xs font-mono"
+                className="w-full sm:flex-1 px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] text-xs font-mono"
               />
               <button
                 type="submit"
                 disabled={searchingPrivate}
-                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center gap-1.5"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center justify-center gap-1.5"
               >
                 {searchingPrivate ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1648,8 +1726,8 @@ export function P2PView({ wallets }: P2PViewProps) {
 
       {/* MODAL: POST P2P AD */}
       {showPostAdModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-5">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4">
+          <div className="w-full max-w-2xl max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-5">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold">Post Decentralized P2P Offer</h3>
@@ -1991,8 +2069,8 @@ export function P2PView({ wallets }: P2PViewProps) {
 
       {/* MODAL: MANAGE SAVED PAYMENT RAILS */}
       {showPaymentsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4">
-          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-5">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4">
+          <div className="w-full max-w-xl max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold">Global P2P Payment Methods</h3>
               <button
@@ -2119,8 +2197,8 @@ export function P2PView({ wallets }: P2PViewProps) {
 
       {/* MODAL: OPEN TRADE AGAINST PUBLIC AD */}
       {tradeModalAd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-4 text-xs">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4">
+          <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-4 text-xs">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold">
                 {tradeModalAd.side === 'sell' ? 'Buy' : 'Sell'} {tradeModalAd.asset} with @
@@ -2299,8 +2377,8 @@ export function P2PView({ wallets }: P2PViewProps) {
 
       {/* MODAL: REQUEST PRIVATE P2P OFFER */}
       {privateReqModalAd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-4 text-xs">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4">
+          <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-4 text-xs">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold">
                 Request Private Trade with @{privateReqModalAd.makerUsername}

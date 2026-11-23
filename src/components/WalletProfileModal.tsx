@@ -327,12 +327,12 @@ export function WalletProfileModal() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/75 backdrop-blur-xs p-0 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-label="Wallet Profile & Security Settings"
     >
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-5 shadow-2xl my-auto max-h-[92vh] overflow-y-auto">
+      <div className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-5 shadow-2xl sm:my-auto max-h-[92dvh] overflow-y-auto">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-base font-bold text-slate-900 dark:text-slate-100">
@@ -422,7 +422,7 @@ export function WalletProfileModal() {
 
         {/* Profile & Photo Form */}
         <form onSubmit={handleSaveProfile} className="space-y-4">
-          <div className="flex items-center gap-4 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17]">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17]">
             {renderAvatar()}
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -546,7 +546,7 @@ export function WalletProfileModal() {
 
         {/* Encrypted Seed Vault & Lock Section */}
         <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
               <KeyRound className="w-3.5 h-3.5 text-amber-500" />
               Encrypted Seed Vault
@@ -569,19 +569,19 @@ export function WalletProfileModal() {
           </div>
 
           {hasLocalVault && !revealedMnemonic && (
-            <form onSubmit={handleRevealSeed} className="flex gap-2">
+            <form onSubmit={handleRevealSeed} className="flex flex-col sm:flex-row gap-2">
               <input
                 type="password"
                 required
                 value={vaultPasswordInput}
                 onChange={(e) => setVaultPasswordInput(e.target.value)}
                 placeholder="Enter password to reveal 12-word seed phrase"
-                className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] text-xs text-slate-900 dark:text-slate-100"
+                className="w-full sm:flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] text-xs text-slate-900 dark:text-slate-100"
               />
               <button
                 type="submit"
                 disabled={busy === 'reveal'}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold whitespace-nowrap"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold whitespace-nowrap"
               >
                 <Eye className="w-3.5 h-3.5" />
                 Reveal
@@ -649,7 +649,7 @@ export function WalletProfileModal() {
 
         {/* Optional Google Account Linking */}
         <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                 <Link2 className="w-3.5 h-3.5 text-blue-500" />
@@ -667,7 +667,7 @@ export function WalletProfileModal() {
                   type="button"
                   onClick={() => void handleUnlinkGoogle()}
                   disabled={busy === 'google'}
-                  className="px-3 py-1.5 rounded-lg border border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 text-xs font-medium whitespace-nowrap shrink-0"
+                  className="px-3 py-1.5 rounded-lg border border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 text-xs font-medium whitespace-nowrap shrink-0 self-start sm:self-auto"
                 >
                   Disconnect
                 </button>
@@ -677,7 +677,7 @@ export function WalletProfileModal() {
                 type="button"
                 onClick={() => void handleLinkGoogle()}
                 disabled={busy === 'google'}
-                className="px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-semibold whitespace-nowrap shrink-0"
+                className="px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-semibold whitespace-nowrap shrink-0 self-start sm:self-auto"
               >
                 {busy === 'google' ? 'Connecting...' : 'Connect Google'}
               </button>
@@ -686,7 +686,7 @@ export function WalletProfileModal() {
         </div>
 
         {/* Footer Sign Out */}
-        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
             End-to-end AES-256-GCM vault

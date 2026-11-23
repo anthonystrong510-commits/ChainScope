@@ -303,7 +303,78 @@ export function MarketsGasView({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Mobile Gas Cards (< md) */}
+        <div className="md:hidden divide-y divide-slate-200/70 dark:divide-slate-800/80 text-xs">
+          {loading && !data ? (
+            <div className="py-10 px-4 text-center text-slate-500">
+              <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+              Measuring live gas across Ethereum, Polygon, Arbitrum, Base, Optimism, BSC &amp; Solana…
+            </div>
+          ) : (
+            (data?.networks || []).map((row) => {
+              const swapNativeCost =
+                row.nativeUsdPrice > 0 ? row.swapUsd / row.nativeUsdPrice : row.transferNative;
+              const readiness = getWalletGasReadiness(row.chainId, swapNativeCost);
+              return (
+                <div key={`m-${row.chainId}`} className="p-3.5 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <ChainIcon chainId={row.chainId} size={20} className="shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+                          {row.name}
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono truncate">
+                          {row.rpcSource} · {row.latencyMs}ms
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right font-mono tabular-nums shrink-0">
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">
+                        {row.status === 'ok'
+                          ? `${
+                              row.standardFeeValue >= 100
+                                ? Math.round(row.standardFeeValue).toLocaleString()
+                                : row.standardFeeValue.toFixed(row.standardFeeValue < 1 ? 3 : 2)
+                            } ${row.gasUnitLabel}`
+                          : 'Offline'}
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        {row.nativeUsdPrice > 0 ? formatUsd(row.nativeUsdPrice) : '—'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/70 font-mono tabular-nums text-[11px]">
+                    <div>
+                      <span className="text-slate-500 block font-sans">Transfer</span>
+                      <span>{row.status === 'ok' ? formatUsd(row.transferUsd) : '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block font-sans">DEX Swap</span>
+                      <span>{row.status === 'ok' ? formatUsd(row.swapUsd) : '—'}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-slate-500 block font-sans">Status</span>
+                      <span
+                        className={
+                          readiness.tone === 'ok'
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : readiness.tone === 'warn'
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-slate-400'
+                        }
+                      >
+                        {readiness.label}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-medium text-slate-500 dark:text-slate-400">
@@ -608,7 +679,7 @@ export function MarketsGasView({
               placeholder="Original plain-text message"
               className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17] text-xs text-slate-900 dark:text-slate-100"
             />
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 value={verifySig}

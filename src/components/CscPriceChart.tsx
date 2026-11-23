@@ -98,7 +98,7 @@ export function CscPriceChart({
         </div>
       </div>
 
-      <div className="relative w-full h-48">
+      <div className="relative w-full h-40 sm:h-48">
         <svg
           viewBox="0 0 720 200"
           className="w-full h-full overflow-visible select-none"

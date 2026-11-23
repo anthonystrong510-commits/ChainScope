@@ -1067,8 +1067,8 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
 
       {/* Pump.fun Arena Sub-Navigation (when not inspecting a single coin) */}
       {!selectedCoin && (
-        <div className="flex flex-wrap items-center justify-between gap-3 p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827]">
-          <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827]">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar w-full lg:w-auto pb-0.5 lg:pb-0">
             {arenaNav.map((tab) => {
               const Icon = tab.icon;
               const active = arenaTab === tab.id;
@@ -1077,7 +1077,7 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
                   key={tab.id}
                   type="button"
                   onClick={() => setArenaTab(tab.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
                     active
                       ? tab.id === 'mayhem'
                         ? 'bg-orange-600 text-white'
@@ -1101,22 +1101,24 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
             })}
           </div>
 
-          <div className="flex items-center gap-1.5 px-2 text-[11px] text-slate-500">
+          <div className="flex items-center justify-between sm:justify-end gap-1.5 px-2 text-[11px] text-slate-500 border-t lg:border-t-0 border-slate-100 dark:border-slate-800 pt-1.5 lg:pt-0 shrink-0">
             <span>Gas:</span>
-            {(['standard', 'fast', 'turbo'] as const).map((tier) => (
-              <button
-                key={tier}
-                type="button"
-                onClick={() => setGasTier(tier)}
-                className={`px-2 py-1 rounded capitalize ${
-                  gasTier === tier
-                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold'
-                    : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                {tier}
-              </button>
-            ))}
+            <div className="flex items-center gap-1">
+              {(['standard', 'fast', 'turbo'] as const).map((tier) => (
+                <button
+                  key={tier}
+                  type="button"
+                  onClick={() => setGasTier(tier)}
+                  className={`px-2 py-1 rounded capitalize ${
+                    gasTier === tier
+                      ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {tier}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -1124,20 +1126,20 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
       {/* VIEW A: SELECTED COIN TRADING TERMINAL */}
       {selectedCoin ? (
         <div className="space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
             <button
               type="button"
               onClick={() => {
                 setSelectedCoinId(null);
                 setSwapFeedback(null);
               }}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white min-h-[36px]"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Pump Arena
             </button>
 
-            <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
               <span>Network: {CHAIN_LABELS[selectedCoin.chain]}</span>
               <span aria-hidden="true">·</span>
               <span>
@@ -1173,7 +1175,7 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
           </div>
 
           {/* Coin Header Summary */}
-          <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] flex flex-wrap items-center justify-between gap-5">
+          <div className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-5">
             <div className="flex items-center gap-3.5 min-w-0">
               <CoinEmblem
                 icon={selectedCoin.emblemIcon}
@@ -1285,37 +1287,18 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
                 </div>
 
                 {detailTab === 'trades' ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
-                          <th className="py-2.5 px-4">Trader</th>
-                          <th className="py-2.5 px-4">Side</th>
-                          <th className="py-2.5 px-4 text-right">SOL</th>
-                          <th className="py-2.5 px-4 text-right">{selectedCoin.ticker}</th>
-                          <th className="py-2.5 px-4 text-right">Gas</th>
-                          <th className="py-2.5 px-4 text-right">Price (SOL)</th>
-                          <th className="py-2.5 px-4 text-right">Time</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                        {coinTrades.length === 0 ? (
-                          <tr>
-                            <td colSpan={7} className="py-8 text-center text-slate-500">
-                              No trades yet. Be the first to buy ${selectedCoin.ticker} on the
-                              curve.
-                            </td>
-                          </tr>
-                        ) : (
-                          coinTrades.map((t) => (
-                            <tr
-                              key={t.id}
-                              className="h-10 hover:bg-slate-50 dark:hover:bg-slate-800/40"
-                            >
-                              <td className="px-4 py-2 font-medium text-slate-800 dark:text-slate-200">
-                                @{t.traderHandle}
-                              </td>
-                              <td className="px-4 py-2">
+                  <>
+                    {/* Mobile Trade Tape Cards */}
+                    <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+                      {coinTrades.length === 0 ? (
+                        <div className="py-8 px-4 text-center text-slate-500">
+                          No trades yet. Be the first to buy ${selectedCoin.ticker} on the curve.
+                        </div>
+                      ) : (
+                        coinTrades.map((t) => (
+                          <div key={t.id} className="p-3.5 space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
                                 <span
                                   className={`font-semibold ${
                                     t.side === 'buy'
@@ -1325,28 +1308,92 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
                                 >
                                   {t.side === 'buy' ? 'Buy' : 'Sell'}
                                 </span>
-                              </td>
-                              <td className="px-4 py-2 text-right font-mono tabular-nums">
-                                {t.solAmount.toFixed(4)}
-                              </td>
-                              <td className="px-4 py-2 text-right font-mono tabular-nums">
-                                {formatCompactTokens(t.tokenAmount)}
-                              </td>
-                              <td className="px-4 py-2 text-right font-mono tabular-nums text-slate-500">
-                                {(t.gasSol ?? economics.baseGasSol).toFixed(5)}
-                              </td>
-                              <td className="px-4 py-2 text-right font-mono tabular-nums text-slate-500">
-                                {formatSolPrice(t.priceSol)}
-                              </td>
-                              <td className="px-4 py-2 text-right tabular-nums text-slate-500">
+                                <span className="font-medium text-slate-800 dark:text-slate-200">
+                                  @{t.traderHandle}
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-slate-500 tabular-nums">
                                 {formatTimestamp(toMillis(t.createdAt))}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 font-mono text-[11px] tabular-nums">
+                              <span className="font-semibold text-slate-900 dark:text-slate-100">
+                                {t.solAmount.toFixed(4)} SOL ⇄ {formatCompactTokens(t.tokenAmount)}{' '}
+                                {selectedCoin.ticker}
+                              </span>
+                              <span className="text-slate-500">
+                                {formatSolPrice(t.priceSol)}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Desktop Trade Tape Table */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+                            <th className="py-2.5 px-4">Trader</th>
+                            <th className="py-2.5 px-4">Side</th>
+                            <th className="py-2.5 px-4 text-right">SOL</th>
+                            <th className="py-2.5 px-4 text-right">{selectedCoin.ticker}</th>
+                            <th className="py-2.5 px-4 text-right">Gas</th>
+                            <th className="py-2.5 px-4 text-right">Price (SOL)</th>
+                            <th className="py-2.5 px-4 text-right">Time</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                          {coinTrades.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="py-8 text-center text-slate-500">
+                                No trades yet. Be the first to buy ${selectedCoin.ticker} on the
+                                curve.
                               </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                          ) : (
+                            coinTrades.map((t) => (
+                              <tr
+                                key={t.id}
+                                className="h-10 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                              >
+                                <td className="px-4 py-2 font-medium text-slate-800 dark:text-slate-200">
+                                  @{t.traderHandle}
+                                </td>
+                                <td className="px-4 py-2">
+                                  <span
+                                    className={`font-semibold ${
+                                      t.side === 'buy'
+                                        ? 'text-emerald-600 dark:text-emerald-400'
+                                        : 'text-red-600 dark:text-red-400'
+                                    }`}
+                                  >
+                                    {t.side === 'buy' ? 'Buy' : 'Sell'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2 text-right font-mono tabular-nums">
+                                  {t.solAmount.toFixed(4)}
+                                </td>
+                                <td className="px-4 py-2 text-right font-mono tabular-nums">
+                                  {formatCompactTokens(t.tokenAmount)}
+                                </td>
+                                <td className="px-4 py-2 text-right font-mono tabular-nums text-slate-500">
+                                  {(t.gasSol ?? economics.baseGasSol).toFixed(5)}
+                                </td>
+                                <td className="px-4 py-2 text-right font-mono tabular-nums text-slate-500">
+                                  {formatSolPrice(t.priceSol)}
+                                </td>
+                                <td className="px-4 py-2 text-right tabular-nums text-slate-500">
+                                  {formatTimestamp(toMillis(t.createdAt))}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 ) : (
                   <div className="p-4 space-y-4">
                     <form onSubmit={handlePostComment} className="flex items-center gap-2">
@@ -2166,12 +2213,12 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
       {/* MODAL: LAUNCH NEW MEME COIN */}
       {showCreateModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-label="Launch Meme Coin"
         >
-          <div className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-5">
+          <div className="w-full max-w-xl max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
@@ -2456,12 +2503,12 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
       {/* MODAL: ACCOUNT PROFILE SETTINGS */}
       {showProfileModal && profile && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-label="Account Settings"
         >
-          <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-4">
+          <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                 Trader Account Settings
@@ -2579,8 +2626,8 @@ export function LaunchpadView({ wallets, scanStates = {}, onOpenConnect }: Launc
       )}
 
       {showTransferModal && profile && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] pb-safe">
             <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 Send SOL to Trader Handle

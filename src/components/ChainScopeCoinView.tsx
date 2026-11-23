@@ -630,7 +630,7 @@ export function ChainScopeCoinView() {
 
       {/* Hero Network Metrics Strip */}
       {network && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-5">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
@@ -796,7 +796,7 @@ export function ChainScopeCoinView() {
       )}
 
       {/* Workspace Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-slate-200 dark:border-slate-800 pb-3">
         {(
           [
             { id: 'tap', label: 'Tap & Referrals', icon: Zap },
@@ -829,8 +829,8 @@ export function ChainScopeCoinView() {
       {subTab === 'tap' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left: Interactive Tap-to-Mine Pad */}
-          <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 space-y-5">
-            <div className="flex items-start justify-between gap-3">
+          <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-5 space-y-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                   Sustainable Tap-to-Mine Engine
@@ -840,7 +840,7 @@ export function ChainScopeCoinView() {
                 </p>
               </div>
               {account && (
-                <div className="text-right font-mono tabular-nums">
+                <div className="text-left sm:text-right font-mono tabular-nums">
                   <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                     +{tapPreview?.perTapRewardCsc ?? network?.tapBaseReward ?? 0.5} CSC / tap
                   </div>
@@ -871,12 +871,12 @@ export function ChainScopeCoinView() {
             )}
 
             {/* Interactive Miner Core */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] p-6 flex flex-col items-center text-center space-y-4">
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] p-4 sm:p-6 flex flex-col items-center text-center space-y-4">
               <button
                 type="button"
                 onClick={handleTapClick}
                 disabled={!user || liveEnergyState.energy <= 0}
-                className="w-40 h-40 rounded-full border-4 border-blue-500/30 bg-blue-600 hover:bg-blue-500 active:scale-95 disabled:opacity-50 disabled:active:scale-100 text-white flex flex-col items-center justify-center transition-all shadow-lg shadow-blue-600/20 select-none"
+                className="w-36 h-36 sm:w-40 sm:h-40 rounded-full border-4 border-blue-500/30 bg-blue-600 hover:bg-blue-500 active:scale-95 disabled:opacity-50 disabled:active:scale-100 text-white flex flex-col items-center justify-center transition-all shadow-lg shadow-blue-600/20 select-none"
               >
                 <Coins className="w-9 h-9 mb-1.5" />
                 <span className="font-display text-sm font-bold tracking-tight">TAP TO MINE</span>
@@ -918,7 +918,7 @@ export function ChainScopeCoinView() {
             </div>
 
             {/* Halving Era & Personal Stats */}
-            <div className="grid grid-cols-3 gap-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 pt-1">
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">Your Taps</div>
                 <div className="text-sm font-bold font-mono tabular-nums text-slate-900 dark:text-slate-100 mt-0.5">
@@ -1136,9 +1136,9 @@ export function ChainScopeCoinView() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <form
             onSubmit={handleExecuteSwap}
-            className="lg:col-span-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 space-y-4"
+            className="lg:col-span-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-5 space-y-4"
           >
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                   AMM Swap · CSC ↔ USDT / USD1
@@ -1341,7 +1341,7 @@ export function ChainScopeCoinView() {
           {/* Right: Platform SOL -> USDT / USD1 / CSC Bridge */}
           <form
             onSubmit={handleBridgeSol}
-            className="lg:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 space-y-4"
+            className="lg:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-5 space-y-4"
           >
             <div>
               <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -1368,7 +1368,7 @@ export function ChainScopeCoinView() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
                   SOL Amount
@@ -1655,7 +1655,7 @@ export function ChainScopeCoinView() {
                           </div>
                         )}
 
-                        <div className="grid grid-cols-3 gap-3 pt-2 border-t border-slate-200 dark:border-slate-800/80 text-xs font-mono tabular-nums">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 pt-2 border-t border-slate-200 dark:border-slate-800/80 text-xs font-mono tabular-nums">
                           <div>
                             <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-sans">
                               CSC Balance
@@ -1691,7 +1691,7 @@ export function ChainScopeCoinView() {
             {/* Right: Inter-Wallet & Wallet-to-Wallet Transfer Form */}
             <form
               onSubmit={handleTransferSubmit}
-              className="lg:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 space-y-4 h-fit"
+              className="lg:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-5 space-y-4 h-fit"
             >
               <div>
                 <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -1879,7 +1879,7 @@ export function ChainScopeCoinView() {
 
       {/* TAB 4: NETWORK BLOCK EXPLORER & LEDGER */}
       {subTab === 'ledger' && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 space-y-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -1896,7 +1896,7 @@ export function ChainScopeCoinView() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto pb-1 sm:pb-0">
               {(
                 [
                   { id: 'all', label: 'All' },
@@ -1912,7 +1912,7 @@ export function ChainScopeCoinView() {
                   key={f.id}
                   type="button"
                   onClick={() => setLedgerFilter(f.id)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
                     ledgerFilter === f.id
                       ? 'bg-blue-600 text-white'
                       : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -1929,87 +1929,122 @@ export function ChainScopeCoinView() {
               No transactions recorded yet for this filter.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
-                    <th className="py-2.5 pr-4 font-medium">Block / Hash</th>
-                    <th className="py-2.5 pr-4 font-medium">Type</th>
-                    <th className="py-2.5 pr-4 font-medium">From → To</th>
-                    <th className="py-2.5 pr-4 font-medium">Value</th>
-                    <th className="py-2.5 pr-4 font-medium">Gas / Burn</th>
-                    <th className="py-2.5 font-medium text-right">Time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800/80">
-                  {filteredTransactions.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                      <td className="py-2.5 pr-4 font-mono tabular-nums">
-                        <div className="font-semibold text-slate-900 dark:text-slate-100">
-                          #{tx.blockHeight}
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                          {truncateAddress(tx.txHash, 8, 6)}
-                        </div>
-                      </td>
-                      <td className="py-2.5 pr-4">
-                        <span className="font-medium text-slate-800 dark:text-slate-200 capitalize">
-                          {tx.type.replace(/_/g, ' ')}
+            <>
+              {/* Mobile Ledger Cards */}
+              <div className="md:hidden divide-y divide-slate-200 dark:divide-slate-800/80">
+                {filteredTransactions.map((tx) => (
+                  <div key={tx.id} className="py-3 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-slate-900 dark:text-slate-100 capitalize">
+                        {tx.type.replace(/_/g, ' ')}
+                      </span>
+                      <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                        #{tx.blockHeight} · {formatTimestamp(tx.createdAt)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 font-mono tabular-nums">
+                      <span className="text-[11px] text-slate-500 truncate">
+                        {tx.fromLabel || truncateAddress(tx.fromAddress, 5, 4)} →{' '}
+                        {tx.toLabel || truncateAddress(tx.toAddress, 5, 4)}
+                      </span>
+                      {tx.type === 'swap' || tx.type === 'sol_bridge' ? (
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+                          {formatCscAmount(tx.amountIn, 2)} {tx.assetIn} →{' '}
+                          {formatCscAmount(tx.amountOut, 2)} {tx.assetOut}
                         </span>
-                        {tx.note && (
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400 max-w-[210px] truncate">
-                            {tx.note}
+                      ) : (
+                        <span className="font-semibold text-slate-900 dark:text-slate-100 shrink-0">
+                          {formatCscAmount(tx.amountOut, 4)} {tx.assetOut}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Ledger Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+                      <th className="py-2.5 pr-4 font-medium">Block / Hash</th>
+                      <th className="py-2.5 pr-4 font-medium">Type</th>
+                      <th className="py-2.5 pr-4 font-medium">From → To</th>
+                      <th className="py-2.5 pr-4 font-medium">Value</th>
+                      <th className="py-2.5 pr-4 font-medium">Gas / Burn</th>
+                      <th className="py-2.5 font-medium text-right">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800/80">
+                    {filteredTransactions.map((tx) => (
+                      <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                        <td className="py-2.5 pr-4 font-mono tabular-nums">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100">
+                            #{tx.blockHeight}
                           </div>
-                        )}
-                      </td>
-                      <td className="py-2.5 pr-4">
-                        <div className="text-slate-900 dark:text-slate-100 truncate max-w-[220px]">
-                          {tx.fromLabel || truncateAddress(tx.fromAddress, 6, 4)}
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
-                          → {tx.toLabel || truncateAddress(tx.toAddress, 6, 4)}
-                        </div>
-                      </td>
-                      <td className="py-2.5 pr-4 font-mono tabular-nums">
-                        {tx.type === 'swap' || tx.type === 'sol_bridge' ? (
-                          <div>
-                            <span className="text-slate-500 dark:text-slate-400">
-                              {formatCscAmount(tx.amountIn, 4)} {tx.assetIn}
-                            </span>
-                            <span className="mx-1 text-slate-400">→</span>
-                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {truncateAddress(tx.txHash, 8, 6)}
+                          </div>
+                        </td>
+                        <td className="py-2.5 pr-4">
+                          <span className="font-medium text-slate-800 dark:text-slate-200 capitalize">
+                            {tx.type.replace(/_/g, ' ')}
+                          </span>
+                          {tx.note && (
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 max-w-[210px] truncate">
+                              {tx.note}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2.5 pr-4">
+                          <div className="text-slate-900 dark:text-slate-100 truncate max-w-[220px]">
+                            {tx.fromLabel || truncateAddress(tx.fromAddress, 6, 4)}
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
+                            → {tx.toLabel || truncateAddress(tx.toAddress, 6, 4)}
+                          </div>
+                        </td>
+                        <td className="py-2.5 pr-4 font-mono tabular-nums">
+                          {tx.type === 'swap' || tx.type === 'sol_bridge' ? (
+                            <div>
+                              <span className="text-slate-500 dark:text-slate-400">
+                                {formatCscAmount(tx.amountIn, 4)} {tx.assetIn}
+                              </span>
+                              <span className="mx-1 text-slate-400">→</span>
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                {formatCscAmount(tx.amountOut, 4)} {tx.assetOut}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="font-semibold text-slate-900 dark:text-slate-100">
                               {formatCscAmount(tx.amountOut, 4)} {tx.assetOut}
                             </span>
-                          </div>
-                        ) : (
-                          <span className="font-semibold text-slate-900 dark:text-slate-100">
-                            {formatCscAmount(tx.amountOut, 4)} {tx.assetOut}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2.5 pr-4 font-mono tabular-nums text-slate-600 dark:text-slate-300">
-                        {tx.gasFeeCsc > 0 ? (
-                          <div>
-                            <span>{tx.gasFeeCsc} CSC</span>
-                            {tx.burnedCsc > 0 && (
-                              <span className="text-amber-600 dark:text-amber-400 ml-1.5 inline-flex items-center gap-0.5">
-                                <Flame className="w-3 h-3" />
-                                {tx.burnedCsc}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">0 gas</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 text-right text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                        {formatTimestamp(tx.createdAt)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                          )}
+                        </td>
+                        <td className="py-2.5 pr-4 font-mono tabular-nums text-slate-600 dark:text-slate-300">
+                          {tx.gasFeeCsc > 0 ? (
+                            <div>
+                              <span>{tx.gasFeeCsc} CSC</span>
+                              {tx.burnedCsc > 0 && (
+                                <span className="text-amber-600 dark:text-amber-400 ml-1.5 inline-flex items-center gap-0.5">
+                                  <Flame className="w-3 h-3" />
+                                  {tx.burnedCsc}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">0 gas</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 text-right text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                          {formatTimestamp(tx.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}

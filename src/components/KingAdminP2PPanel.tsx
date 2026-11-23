@@ -307,12 +307,12 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
   return (
     <div className="space-y-5">
       {/* Top P2P Controls Strip */}
-      <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17] text-xs">
+      <div className="p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17] text-xs overflow-x-auto no-scrollbar max-w-full">
           <button
             type="button"
             onClick={() => setSectionTab('queue')}
-            className={`px-3.5 py-1.5 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${
+            className={`px-3 sm:px-3.5 py-1.5 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               sectionTab === 'queue'
                 ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
                 : 'text-slate-500'
@@ -324,7 +324,7 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
           <button
             type="button"
             onClick={() => setSectionTab('automation')}
-            className={`px-3.5 py-1.5 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${
+            className={`px-3 sm:px-3.5 py-1.5 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               sectionTab === 'automation'
                 ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
                 : 'text-slate-500'
@@ -336,7 +336,7 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
           <button
             type="button"
             onClick={() => setSectionTab('wallets')}
-            className={`px-3.5 py-1.5 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 ${
+            className={`px-3 sm:px-3.5 py-1.5 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               sectionTab === 'wallets'
                 ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
                 : 'text-slate-500'
@@ -347,7 +347,7 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
           </button>
         </div>
 
-        <div className="flex items-center gap-3 text-[11px] text-slate-500 font-mono">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] text-slate-500 font-mono">
           <span>Buy Min Trades: {settings.minCompletedTradesToBuy}</span>
           <span>·</span>
           <span>Auto-Release: {settings.autoReleaseEnabled ? `${settings.autoReleaseAfterMins}m` : 'Off'}</span>
@@ -366,11 +366,11 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
       {/* SECTION 1: MODERATION QUEUE + DIRECT RELEASE / MARK PAID */}
       {sectionTab === 'queue' && (
         <div className="space-y-4">
-          <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#111827] border border-slate-200 dark:border-slate-800 text-xs w-fit">
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#111827] border border-slate-200 dark:border-slate-800 text-xs overflow-x-auto no-scrollbar max-w-full w-fit">
             <button
               type="button"
               onClick={() => setFilter('disputed')}
-              className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap shrink-0 ${
                 filter === 'disputed'
                   ? 'bg-red-600 text-white'
                   : 'text-slate-600 dark:text-slate-300'
@@ -381,7 +381,7 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
             <button
               type="button"
               onClick={() => setFilter('active')}
-              className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap shrink-0 ${
                 filter === 'active'
                   ? 'bg-blue-600 text-white'
                   : 'text-slate-600 dark:text-slate-300'
@@ -392,7 +392,7 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
             <button
               type="button"
               onClick={() => setFilter('all')}
-              className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap shrink-0 ${
                 filter === 'all'
                   ? 'bg-slate-900 dark:bg-slate-700 text-white'
                   : 'text-slate-600 dark:text-slate-300'
@@ -455,7 +455,7 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
               )}
             </div>
 
-            <div className="lg:col-span-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 space-y-4">
+            <div className="lg:col-span-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-5 space-y-4">
               {!selectedOrder ? (
                 <div className="py-16 text-center text-xs text-slate-500">
                   Select a P2P order to mark paid, inspect proof, release coins, or resolve disputes.
@@ -463,12 +463,12 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
               ) : (
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="text-sm font-bold">
                         Order #{selectedOrder.id.slice(-8)} ·{' '}
                         {getCountryByCode(selectedOrder.countryCode).name}
                       </h3>
-                      <div className="text-xs text-slate-500 mt-0.5">
+                      <div className="text-xs text-slate-500 mt-0.5 break-all">
                         Seller @{selectedOrder.sellerUsername} ({truncateAddress(selectedOrder.sellerWalletAddress, 6, 4)}) · Buyer @{selectedOrder.buyerUsername} ({truncateAddress(selectedOrder.buyerWalletAddress, 6, 4)})
                       </div>
                     </div>
@@ -563,7 +563,7 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
                           emitTyping(e.target.value.trim().length > 0);
                         }}
                         placeholder="Message Buyer & Seller as KingAdmin…"
-                        className="flex-1 px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] text-xs"
+                        className="flex-1 min-w-0 px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] text-xs"
                       />
                       <button
                         type="submit"
@@ -657,7 +657,7 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
       {sectionTab === 'automation' && (
         <form
           onSubmit={(e) => void handleSaveAutomationSettings(e)}
-          className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-5 max-w-2xl text-xs"
+          className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 space-y-5 max-w-2xl text-xs"
         >
           <div>
             <h3 className="text-sm font-bold">P2P Buy Gate &amp; Settlement Automation</h3>
@@ -766,7 +766,7 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start text-xs">
           <form
             onSubmit={(e) => void handleAddReceivingWallet(e)}
-            className="lg:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 space-y-3.5"
+            className="lg:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-5 space-y-3.5"
           >
             <div>
               <h3 className="text-sm font-bold">Add Escrow Receiving Wallet</h3>
@@ -795,7 +795,7 @@ export function KingAdminP2PPanel({ onNotify }: KingAdminP2PPanelProps) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
                 <label className="block font-medium text-slate-500 mb-1">Chain</label>
                 <select

@@ -79,7 +79,7 @@ export function BondingCurveChart({ coin, trades }: BondingCurveChartProps) {
     const strokeColor = isUp ? '#10B981' : '#EF4444';
 
     return (
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-56 overflow-visible">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-44 sm:h-56 overflow-visible">
         <defs>
           <linearGradient id={`priceArea-${coin.id}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={strokeColor} stopOpacity="0.24" />
@@ -138,7 +138,7 @@ export function BondingCurveChart({ coin, trades }: BondingCurveChartProps) {
     const curveColor = coin.mode === 'mayhem' ? '#F97316' : '#3B82F6';
 
     return (
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-56 overflow-visible">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-44 sm:h-56 overflow-visible">
         {[0.25, 0.5, 0.75].map((frac) => {
           const y = padY + frac * (height - padY * 2);
           return (
@@ -171,7 +171,7 @@ export function BondingCurveChart({ coin, trades }: BondingCurveChartProps) {
   };
 
   return (
-    <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4">
+    <div className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-xs font-medium text-slate-500 dark:text-slate-400">

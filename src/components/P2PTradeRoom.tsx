@@ -69,6 +69,7 @@ export function P2PTradeRoom({
   const [banner, setBanner] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const [mobilePane, setMobilePane] = useState<'escrow' | 'chat'>('escrow');
 
   // Escrow Lock form (Seller)
   const [escrowModeInput, setEscrowModeInput] = useState<P2PEscrowMode>(initialOrder.escrowMode);
@@ -331,12 +332,12 @@ export function P2PTradeRoom({
   return (
     <div className="space-y-5">
       {/* Top Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium min-h-[36px]"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             All P2P Offers
@@ -351,7 +352,7 @@ export function P2PTradeRoom({
           </div>
         </div>
 
-        <div className="text-right text-xs font-mono tabular-nums">
+        <div className="text-left sm:text-right text-xs font-mono tabular-nums">
           <div className="text-slate-500 dark:text-slate-400">Order Total</div>
           <div className="text-base font-bold text-slate-900 dark:text-slate-100">
             {formatFiatAmount(order.fiatAmount, order.fiatCurrency)}
@@ -391,10 +392,45 @@ export function P2PTradeRoom({
         </div>
       )}
 
+      {/* Mobile Pane Switcher (< lg) */}
+      <div className="lg:hidden grid grid-cols-2 gap-1 p-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] text-xs">
+        <button
+          type="button"
+          onClick={() => setMobilePane('escrow')}
+          className={`py-2 px-3 rounded-lg font-semibold transition-colors ${
+            mobilePane === 'escrow'
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-600 dark:text-slate-300'
+          }`}
+        >
+          Escrow &amp; Proof
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobilePane('chat')}
+          className={`py-2 px-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+            mobilePane === 'chat'
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-600 dark:text-slate-300'
+          }`}
+        >
+          <span
+            className={`w-2 h-2 rounded-full ${
+              connected ? 'bg-emerald-400' : 'bg-amber-400'
+            }`}
+          />
+          <span>Live Chat ({messages.length})</span>
+        </button>
+      </div>
+
       {/* Split Workspace: Left Escrow & Proof Controls | Right Real-Time Chat */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* LEFT: Escrow, Counterparties & Proof Controls */}
-        <div className="lg:col-span-6 space-y-4">
+        <div
+          className={`${
+            mobilePane === 'escrow' ? 'block' : 'hidden lg:block'
+          } lg:col-span-6 space-y-4`}
+        >
           {/* Counterparties 1:1 Identity */}
           <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-3">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-900 dark:text-slate-100">
@@ -427,7 +463,7 @@ export function P2PTradeRoom({
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-xs font-mono tabular-nums">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-200 dark:border-slate-800 text-xs font-mono tabular-nums">
               <div>
                 <div className="text-[11px] text-slate-500 font-sans">Unit Price</div>
                 <div className="font-semibold">
@@ -564,18 +600,18 @@ export function P2PTradeRoom({
                         placeholder="Paste on-chain TX hash (0x... or Solana signature)"
                         className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] font-mono"
                       />
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                         <input
                           type="text"
                           value={escrowSigInput}
                           onChange={(e) => setEscrowSigInput(e.target.value)}
                           placeholder="Optional personal_sign signature"
-                          className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] font-mono text-[11px]"
+                          className="w-full sm:flex-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] font-mono text-[11px]"
                         />
                         <button
                           type="button"
                           onClick={() => void handleSignEscrowWithEvmWallet()}
-                          className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium whitespace-nowrap"
+                          className="w-full sm:w-auto px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium whitespace-nowrap"
                         >
                           Sign Proof
                         </button>
@@ -583,7 +619,7 @@ export function P2PTradeRoom({
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <button
                       type="button"
                       disabled={busyAction === 'lock'}
@@ -686,7 +722,7 @@ export function P2PTradeRoom({
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0B0F17]"
                   />
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <button
                       type="button"
                       disabled={busyAction === 'paid'}
@@ -765,7 +801,7 @@ export function P2PTradeRoom({
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 {isSeller && (
                   <button
                     type="button"
@@ -784,7 +820,7 @@ export function P2PTradeRoom({
                 <button
                   type="button"
                   onClick={() => setShowDisputeBox((v) => !v)}
-                  className="py-2.5 px-3 rounded-lg border border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 font-medium flex items-center gap-1.5"
+                  className="py-2.5 px-3 rounded-lg border border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 font-medium flex items-center justify-center gap-1.5"
                 >
                   <Gavel className="w-3.5 h-3.5" />
                   Open Dispute
@@ -854,7 +890,11 @@ export function P2PTradeRoom({
         </div>
 
         {/* RIGHT: RESPONSIVE REAL-TIME WEBSOCKET TRADE CHAT */}
-        <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] flex flex-col h-[580px]">
+        <div
+          className={`${
+            mobilePane === 'chat' ? 'flex' : 'hidden lg:flex'
+          } lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] flex-col h-[64dvh] min-h-[380px] lg:h-[580px]`}
+        >
           <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
             <div>
               <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">

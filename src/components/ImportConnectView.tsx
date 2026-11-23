@@ -520,31 +520,33 @@ export function ImportConnectView({ onImportWallet }: ImportConnectViewProps) {
       </div>
 
       {/* Mode Switcher */}
-      <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#111827] border border-slate-200 dark:border-slate-800 w-fit">
-        {tabs.map((t) => {
-          const Icon = t.icon;
-          const active = mode === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setMode(t.id)}
-              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                active
-                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {t.label}
-            </button>
-          );
-        })}
+      <div className="w-full overflow-x-auto no-scrollbar">
+        <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#111827] border border-slate-200 dark:border-slate-800 min-w-max">
+          {tabs.map((t) => {
+            const Icon = t.icon;
+            const active = mode === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setMode(t.id)}
+                className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                  active
+                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* MODE 1: SEED PHRASE GRID */}
       {mode === 'seed' && (
-        <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-5">
+        <div className="p-4 sm:p-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -738,7 +740,41 @@ export function ImportConnectView({ onImportWallet }: ImportConnectViewProps) {
               <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 mb-2.5">
                 Multi-Account Sweep Results (Live Mainnet Scan)
               </div>
-              <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+              {/* Mobile Sweep Cards */}
+              <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-800 text-xs">
+                {sweepRows.map((row) => (
+                  <div key={`m-${row.index}`} className="p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-semibold">Account #{row.index}</span>
+                      <span className="font-mono font-semibold tabular-nums">
+                        {row.scanning ? 'Scanning…' : formatUsd(row.totalUsd)}
+                      </span>
+                    </div>
+                    <div className="font-mono text-[11px] text-slate-500 space-y-0.5">
+                      <div>EVM: {truncateAddress(row.evmAddress, 6, 4)}</div>
+                      <div>SOL: {truncateAddress(row.solanaAddress, 6, 4)}</div>
+                    </div>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="font-mono text-[11px] text-slate-600 dark:text-slate-400">
+                        {row.scanning
+                          ? 'Scanning…'
+                          : `${formatTokenBalance(row.ethBalance)} / ${formatTokenBalance(
+                              row.polBalance
+                            )} / ${formatTokenBalance(row.solBalance)}`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleSeedImport(row.index)}
+                        className="px-2.5 py-1 rounded bg-blue-600 text-white text-[11px] font-medium"
+                      >
+                        Import #{row.index}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] text-[11px] text-slate-500 dark:text-slate-400">
@@ -791,7 +827,7 @@ export function ImportConnectView({ onImportWallet }: ImportConnectViewProps) {
 
       {/* MODE 2: PRIVATE KEY INSTANT SCAN */}
       {mode === 'private-key' && (
-        <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-5">
+        <div className="p-4 sm:p-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-5">
           <div>
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               Universal Private Key Importer & Instant Scanner
@@ -849,7 +885,7 @@ export function ImportConnectView({ onImportWallet }: ImportConnectViewProps) {
                           : 'Detected Solana Ed25519 Keypair'}
                       </span>
                     </div>
-                    <span className="font-mono text-slate-600 dark:text-slate-300">
+                    <span className="font-mono text-slate-600 dark:text-slate-300 break-all">
                       Address: {pkPreview.parsed.address}
                     </span>
                   </div>
@@ -1144,7 +1180,7 @@ export function ImportConnectView({ onImportWallet }: ImportConnectViewProps) {
       {mode === 'watch-keystore' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* Watch Address / ENS */}
-          <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4">
+          <div className="p-4 sm:p-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-4">
             <div>
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 Watch-Only Address or ENS Lookup

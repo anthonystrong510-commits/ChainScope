@@ -219,12 +219,12 @@ export function DepositToPlatformModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Add Coins to Platform Wallet"
     >
-      <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-5 shadow-xl">
+      <div className="w-full max-w-lg max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-5 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -385,7 +385,7 @@ export function DepositToPlatformModal({
                     Verified Balance: {formatTokenBalance(activeOption.balance)} {activeOption.symbol}
                   </span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="number"
                     step="any"
@@ -396,19 +396,21 @@ export function DepositToPlatformModal({
                       setError(null);
                     }}
                     placeholder={`0.00 ${activeOption.symbol}`}
-                    className="flex-1 min-w-0 px-3 py-2 text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full sm:flex-1 min-w-0 px-3 py-2 text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  {[0.25, 0.5, 1].map((pct) => (
-                    <button
-                      key={pct}
-                      type="button"
-                      disabled={activeOption.balance <= 0}
-                      onClick={() => handleSetPct(pct)}
-                      className="px-2.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-[11px] font-mono font-medium"
-                    >
-                      {pct === 1 ? 'MAX' : `${pct * 100}%`}
-                    </button>
-                  ))}
+                  <div className="grid grid-cols-3 sm:flex gap-1.5 shrink-0">
+                    {[0.25, 0.5, 1].map((pct) => (
+                      <button
+                        key={pct}
+                        type="button"
+                        disabled={activeOption.balance <= 0}
+                        onClick={() => handleSetPct(pct)}
+                        className="px-2.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-[11px] font-mono font-medium"
+                      >
+                        {pct === 1 ? 'MAX' : `${pct * 100}%`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

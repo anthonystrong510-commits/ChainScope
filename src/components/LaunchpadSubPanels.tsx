@@ -178,7 +178,66 @@ export function HolderRewardsPanel({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Mobile Holder Rewards Cards */}
+        <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+          {eligibleRows.length === 0 ? (
+            <div className="py-10 px-4 text-center text-slate-500">
+              Buy any meme coin on the curve to earn proportional holder rewards from swap volume.
+            </div>
+          ) : (
+            eligibleRows.map(({ holding, poolSol, sharePct, estClaim }) => (
+              <div key={holding.coinId} className="p-4 space-y-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onSelectCoin(holding.coinId)}
+                    className="flex items-center gap-2.5 text-left hover:underline min-w-0"
+                  >
+                    <CoinEmblem
+                      icon={holding.emblemIcon}
+                      color={holding.emblemColor}
+                      size="sm"
+                    />
+                    <div className="min-w-0">
+                      <div className="font-semibold truncate">{holding.name}</div>
+                      <div className="font-mono text-[11px] text-blue-500">${holding.ticker}</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={claimingId === holding.coinId || estClaim <= 0.000001}
+                    onClick={() => void handleClaim(holding.coinId, holding.ticker)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-medium shrink-0"
+                  >
+                    {claimingId === holding.coinId && <Loader2 className="w-3 h-3 animate-spin" />}
+                    Claim
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-2 font-mono text-[11px] tabular-nums pt-1">
+                  <div>
+                    <span className="font-sans text-slate-500 block">Balance</span>
+                    <span>{formatCompactTokens(holding.tokenBalance)}</span>
+                  </div>
+                  <div>
+                    <span className="font-sans text-slate-500 block">Share / Pool</span>
+                    <span>
+                      {sharePct.toFixed(1)}% · {poolSol.toFixed(3)}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-sans text-slate-500 block">Claimable</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {estClaim.toFixed(5)} SOL
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Holder Rewards Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
@@ -547,7 +606,71 @@ export function PerpsPanel({
               <span className="text-slate-500 font-normal">Live curve mark-to-market</span>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile Open Positions Cards */}
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+              {openPositions.length === 0 ? (
+                <div className="py-10 px-4 text-center text-slate-500">
+                  No open perpetual positions. Open a leveraged Long or Short above.
+                </div>
+              ) : (
+                openPositions.map((pos) => {
+                  const coin = coinMap.get(pos.coinId);
+                  const mark = coin?.priceSol || pos.entryPriceSol;
+                  const pnl = computeUnrealizedPnl(pos, mark);
+                  return (
+                    <div key={pos.id} className="p-4 space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 font-mono">
+                          <span className="font-semibold text-blue-500">${pos.ticker}</span>
+                          <span
+                            className={`font-semibold ${
+                              pos.side === 'long' ? 'text-emerald-500' : 'text-red-500'
+                            }`}
+                          >
+                            {pos.leverage}x {pos.side.toUpperCase()}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={closingId === pos.id}
+                          onClick={() => void handleClosePerp(pos)}
+                          className="px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium"
+                        >
+                          {closingId === pos.id ? 'Settling…' : 'Settle'}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 font-mono text-[11px] tabular-nums">
+                        <div>
+                          <span className="font-sans text-slate-500 block">Collateral</span>
+                          <span>{pos.collateralSol.toFixed(3)} SOL</span>
+                        </div>
+                        <div>
+                          <span className="font-sans text-slate-500 block">Entry / Mark</span>
+                          <span>
+                            {formatSolPrice(pos.entryPriceSol)} / {formatSolPrice(mark)}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-sans text-slate-500 block">Unrealized PnL</span>
+                          <span
+                            className={`font-semibold ${
+                              pnl.pnlSol >= 0 ? 'text-emerald-500' : 'text-red-500'
+                            }`}
+                          >
+                            {pnl.pnlSol >= 0 ? '+' : ''}
+                            {pnl.pnlSol.toFixed(4)} ({pnl.roiPct >= 0 ? '+' : ''}
+                            {pnl.roiPct.toFixed(1)}%)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop Open Positions Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
@@ -960,7 +1083,7 @@ export function LeaderboardPanel({
           </p>
         </div>
 
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17]">
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17] overflow-x-auto no-scrollbar w-full sm:w-auto">
           {[
             { id: 'traders', label: 'Top Traders' },
             { id: 'creators', label: 'Top Creators' },
@@ -970,7 +1093,7 @@ export function LeaderboardPanel({
               key={tab.id}
               type="button"
               onClick={() => setBoardTab(tab.id as 'traders' | 'creators' | 'coins')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
                 boardTab === tab.id
                   ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400'
@@ -984,125 +1107,209 @@ export function LeaderboardPanel({
 
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] overflow-hidden">
         {boardTab === 'traders' && (
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
-                <th className="py-3 px-4">Rank</th>
-                <th className="py-3 px-4">Trader</th>
-                <th className="py-3 px-4 text-right">SOL Liquidity</th>
-                <th className="py-3 px-4 text-right">Est. USD</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-              {topTraders.map((t, idx) => (
-                <tr key={t.uid} className="h-11">
-                  <td className="px-4 py-2 font-mono font-bold text-slate-500">#{idx + 1}</td>
-                  <td className="px-4 py-2">
-                    <span className="font-semibold">@{t.handle}</span>
-                    <span className="text-slate-500 ml-2">{t.displayName}</span>
-                  </td>
-                  <td className="px-4 py-2 text-right font-mono font-semibold tabular-nums">
-                    {t.solBalance.toFixed(4)} SOL
-                  </td>
-                  <td className="px-4 py-2 text-right font-mono text-slate-500 tabular-nums">
-                    {solUsdPrice > 0 ? formatUsd(t.solBalance * solUsdPrice) : '—'}
-                  </td>
-                </tr>
-              ))}
-              {topTraders.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="py-8 text-center text-slate-500">
-                    No traders registered yet.
-                  </td>
-                </tr>
+          <>
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+              {topTraders.length === 0 ? (
+                <div className="py-8 text-center text-slate-500">No traders registered yet.</div>
+              ) : (
+                topTraders.map((t, idx) => (
+                  <div key={t.uid} className="p-3.5 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-slate-500">#{idx + 1}</span>
+                        <span className="font-semibold truncate">@{t.handle}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 truncate">{t.displayName}</div>
+                    </div>
+                    <div className="text-right font-mono tabular-nums shrink-0">
+                      <div className="font-semibold">{t.solBalance.toFixed(4)} SOL</div>
+                      <div className="text-[11px] text-slate-500">
+                        {solUsdPrice > 0 ? formatUsd(t.solBalance * solUsdPrice) : '—'}
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
-            </tbody>
-          </table>
+            </div>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
+                    <th className="py-3 px-4">Rank</th>
+                    <th className="py-3 px-4">Trader</th>
+                    <th className="py-3 px-4 text-right">SOL Liquidity</th>
+                    <th className="py-3 px-4 text-right">Est. USD</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                  {topTraders.map((t, idx) => (
+                    <tr key={t.uid} className="h-11">
+                      <td className="px-4 py-2 font-mono font-bold text-slate-500">#{idx + 1}</td>
+                      <td className="px-4 py-2">
+                        <span className="font-semibold">@{t.handle}</span>
+                        <span className="text-slate-500 ml-2">{t.displayName}</span>
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono font-semibold tabular-nums">
+                        {t.solBalance.toFixed(4)} SOL
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono text-slate-500 tabular-nums">
+                        {solUsdPrice > 0 ? formatUsd(t.solBalance * solUsdPrice) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                  {topTraders.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-slate-500">
+                        No traders registered yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {boardTab === 'creators' && (
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
-                <th className="py-3 px-4">Rank</th>
-                <th className="py-3 px-4">Creator</th>
-                <th className="py-3 px-4 text-right">Coins Launched</th>
-                <th className="py-3 px-4 text-right">Peak MCap</th>
-                <th className="py-3 px-4 text-right">Total Volume</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-              {topCreators.map((cr, idx) => (
-                <tr key={cr.uid} className="h-11">
-                  <td className="px-4 py-2 font-mono font-bold text-slate-500">#{idx + 1}</td>
-                  <td className="px-4 py-2 font-semibold">@{cr.handle}</td>
-                  <td className="px-4 py-2 text-right font-mono tabular-nums">{cr.coinsCount}</td>
-                  <td className="px-4 py-2 text-right font-mono tabular-nums">
-                    {cr.maxMcapSol.toFixed(2)} SOL
-                  </td>
-                  <td className="px-4 py-2 text-right font-mono font-semibold text-emerald-500 tabular-nums">
-                    {cr.totalVolSol.toFixed(2)} SOL
-                  </td>
-                </tr>
-              ))}
-              {topCreators.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">
-                    No coin creators yet.
-                  </td>
-                </tr>
+          <>
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+              {topCreators.length === 0 ? (
+                <div className="py-8 text-center text-slate-500">No coin creators yet.</div>
+              ) : (
+                topCreators.map((cr, idx) => (
+                  <div key={cr.uid} className="p-3.5 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-slate-500">#{idx + 1}</span>
+                        <span className="font-semibold truncate">@{cr.handle}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-mono">
+                        {cr.coinsCount} coins · Peak {cr.maxMcapSol.toFixed(2)} SOL
+                      </div>
+                    </div>
+                    <div className="text-right font-mono font-semibold text-emerald-500 tabular-nums shrink-0">
+                      {cr.totalVolSol.toFixed(2)} SOL
+                    </div>
+                  </div>
+                ))
               )}
-            </tbody>
-          </table>
+            </div>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
+                    <th className="py-3 px-4">Rank</th>
+                    <th className="py-3 px-4">Creator</th>
+                    <th className="py-3 px-4 text-right">Coins Launched</th>
+                    <th className="py-3 px-4 text-right">Peak MCap</th>
+                    <th className="py-3 px-4 text-right">Total Volume</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                  {topCreators.map((cr, idx) => (
+                    <tr key={cr.uid} className="h-11">
+                      <td className="px-4 py-2 font-mono font-bold text-slate-500">#{idx + 1}</td>
+                      <td className="px-4 py-2 font-semibold">@{cr.handle}</td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums">{cr.coinsCount}</td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums">
+                        {cr.maxMcapSol.toFixed(2)} SOL
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono font-semibold text-emerald-500 tabular-nums">
+                        {cr.totalVolSol.toFixed(2)} SOL
+                      </td>
+                    </tr>
+                  ))}
+                  {topCreators.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-500">
+                        No coin creators yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {boardTab === 'coins' && (
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
-                <th className="py-3 px-4">Rank</th>
-                <th className="py-3 px-4">Token</th>
-                <th className="py-3 px-4">Mode</th>
-                <th className="py-3 px-4 text-right">Market Cap</th>
-                <th className="py-3 px-4 text-right">Volume</th>
-                <th className="py-3 px-4 text-right">Curve</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+          <>
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
               {topCoins.map((c, idx) => (
-                <tr
+                <button
                   key={c.id}
+                  type="button"
                   onClick={() => onSelectCoin(c.id)}
-                  className="h-12 hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer"
+                  className="w-full p-3.5 flex items-center justify-between gap-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40"
                 >
-                  <td className="px-4 py-2 font-mono font-bold text-slate-500">#{idx + 1}</td>
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-2.5">
-                      <CoinEmblem icon={c.emblemIcon} color={c.emblemColor} size="sm" />
-                      <span className="font-semibold">{c.name}</span>
-                      <span className="font-mono text-blue-500">${c.ticker}</span>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="font-mono font-bold text-slate-500 shrink-0">#{idx + 1}</span>
+                    <CoinEmblem icon={c.emblemIcon} color={c.emblemColor} size="sm" />
+                    <div className="min-w-0">
+                      <div className="font-semibold truncate">
+                        {c.name} <span className="font-mono text-blue-500">${c.ticker}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-mono">
+                        Vol {c.volumeSol.toFixed(1)} SOL ·{' '}
+                        {getBondingProgressPct(c.realSol, c.mode || 'standard').toFixed(1)}%
+                      </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-2 capitalize">
-                    {c.mode === 'mayhem' ? (
-                      <span className="text-orange-500 font-semibold">Mayhem</span>
-                    ) : (
-                      'Standard'
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-right font-mono font-semibold tabular-nums">
+                  </div>
+                  <div className="text-right font-mono font-semibold tabular-nums shrink-0">
                     {c.marketCapSol.toFixed(2)} SOL
-                  </td>
-                  <td className="px-4 py-2 text-right font-mono tabular-nums">
-                    {c.volumeSol.toFixed(2)} SOL
-                  </td>
-                  <td className="px-4 py-2 text-right font-mono tabular-nums">
-                    {getBondingProgressPct(c.realSol, c.mode || 'standard').toFixed(1)}%
-                  </td>
-                </tr>
+                  </div>
+                </button>
               ))}
-            </tbody>
-          </table>
+            </div>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
+                    <th className="py-3 px-4">Rank</th>
+                    <th className="py-3 px-4">Token</th>
+                    <th className="py-3 px-4">Mode</th>
+                    <th className="py-3 px-4 text-right">Market Cap</th>
+                    <th className="py-3 px-4 text-right">Volume</th>
+                    <th className="py-3 px-4 text-right">Curve</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                  {topCoins.map((c, idx) => (
+                    <tr
+                      key={c.id}
+                      onClick={() => onSelectCoin(c.id)}
+                      className="h-12 hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer"
+                    >
+                      <td className="px-4 py-2 font-mono font-bold text-slate-500">#{idx + 1}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2.5">
+                          <CoinEmblem icon={c.emblemIcon} color={c.emblemColor} size="sm" />
+                          <span className="font-semibold">{c.name}</span>
+                          <span className="font-mono text-blue-500">${c.ticker}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 capitalize">
+                        {c.mode === 'mayhem' ? (
+                          <span className="text-orange-500 font-semibold">Mayhem</span>
+                        ) : (
+                          'Standard'
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono font-semibold tabular-nums">
+                        {c.marketCapSol.toFixed(2)} SOL
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums">
+                        {c.volumeSol.toFixed(2)} SOL
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums">
+                        {getBondingProgressPct(c.realSol, c.mode || 'standard').toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -1137,7 +1344,7 @@ export function MechanicsExplainerPanel({ economics }: { economics: PlatformEcon
   const gas = computeGasFee(simGasTier, economics);
 
   return (
-    <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-5">
+    <div className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -1150,7 +1357,7 @@ export function MechanicsExplainerPanel({ economics }: { economics: PlatformEcon
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           <button
             type="button"
             onClick={() => setSimMode('standard')}

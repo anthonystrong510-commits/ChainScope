@@ -315,12 +315,12 @@ export function WalletOnboardingModal() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/75 backdrop-blur-xs p-0 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-label="ChainScope Wallet Setup"
     >
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 space-y-5 shadow-2xl my-auto">
+      <div className="w-full max-w-lg max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-4 sm:p-6 pb-safe space-y-5 shadow-2xl sm:my-auto">
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -391,7 +391,7 @@ export function WalletOnboardingModal() {
         {mode === 'create' && step === 1 && (
           <form onSubmit={handleProceedToSeedStep} className="space-y-4">
             {/* Profile Photo Picker */}
-            <div className="flex items-center gap-4 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17]">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17]">
               {renderAvatarPreview()}
               <div className="flex-1 min-w-0 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -576,7 +576,7 @@ export function WalletOnboardingModal() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                   <KeyRound className="w-3.5 h-3.5 text-amber-500" />
                   Save Your 12-Word Seed Phrase
@@ -605,21 +605,23 @@ export function WalletOnboardingModal() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {seedBundle.words.map((word, idx) => (
                   <div
                     key={`${word}-${idx}`}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] text-xs font-mono flex items-center gap-1.5"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] text-xs font-mono flex items-center gap-1.5 min-w-0"
                   >
-                    <span className="text-[10px] text-slate-400 w-4">{idx + 1}.</span>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">{word}</span>
+                    <span className="text-[10px] text-slate-400 w-4 shrink-0">{idx + 1}.</span>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+                      {word}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Verify 2 words */}
-            <div className="grid grid-cols-2 gap-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
                 <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-300 mb-1">
                   Confirm Word #{seedBundle.verifyIndices[0] + 1}
@@ -749,7 +751,7 @@ export function WalletOnboardingModal() {
           <div className="text-center text-[11px] text-slate-500 dark:text-slate-400">
             Google login is optional — create a wallet above or connect Google anytime later
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => void signInWithGoogle()}
