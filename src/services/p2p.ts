@@ -2,19 +2,26 @@ import { getAuthHeaders, getOptionalAuthHeaders } from '../firebase';
 import type {
   P2PAd,
   P2PAdSide,
+  P2PAdVisibility,
+  P2PAdminSettings,
   P2PAsset,
   P2PChatMessage,
   P2PEscrowMode,
   P2POrder,
   P2POverviewResponse,
   P2PPriceType,
+  P2PPrivateRequest,
   P2PSavedPaymentMethod,
 } from '../types/p2p';
 
 async function parseJson<T>(res: Response): Promise<T> {
-  const json = (await res.json()) as T & { error?: string };
+  const json = (await res.json()) as T & { error?: string; code?: string };
   if (!res.ok) {
-    throw new Error(json.error || `Request failed (${res.status})`);
+    const err = new Error(json.error || `Request failed (${res.status})`) as Error & {
+      code?: string;
+    };
+    if (json.code) err.code = json.code;
+    throw err;
   }
   return json;
 }
@@ -53,6 +60,8 @@ export async function deleteP2PPaymentProfile(id: string): Promise<void> {
 
 export async function createP2PAd(params: {
   side: P2PAdSide;
+  visibility?: P2PAdVisibility;
+  allowedUsernames?: string[];
   asset: P2PAsset;
   countryCode: string;
   priceType: P2PPriceType;
@@ -64,6 +73,7 @@ export async function createP2PAd(params: {
   paymentMethodIds: string[];
   paymentWindowMins: number;
   escrowMode: P2PEscrowMode;
+  escrowDepositTxHash?: string;
   terms?: string;
 }): Promise<P2PAd> {
   const headers = await getAuthHeaders();
@@ -90,6 +100,44 @@ export async function updateP2PAdStatus(
   return data.ad;
 }
 
+export async function lookupPrivateP2PAds(query: string): Promise<P2PAd[]> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`/api/db/p2p/private-lookup?query=${encodeURIComponent(query)}`, {
+    headers,
+  });
+  const data = await parseJson<{ ads: P2PAd[] }>(res);
+  return data.ads;
+}
+
+export async function createPrivateP2PRequest(params: {
+  adId: string;
+  fiatAmount: number;
+  paymentMethodId: string;
+  note?: string;
+}): Promise<P2PPrivateRequest> {
+  const headers = await getAuthHeaders();
+  const res = await fetch('/api/db/p2p/private-requests', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(params),
+  });
+  const data = await parseJson<{ request: P2PPrivateRequest }>(res);
+  return data.request;
+}
+
+export async function respondPrivateP2PRequest(
+  id: string,
+  decision: 'approve' | 'decline'
+): Promise<{ request: P2PPrivateRequest; order: P2POrder | null }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`/api/db/p2p/private-requests/${encodeURIComponent(id)}/respond`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ decision }),
+  });
+  return parseJson<{ request: P2PPrivateRequest; order: P2POrder | null }>(res);
+}
+
 export async function createP2POrder(params: {
   adId: string;
   fiatAmount: number;
@@ -99,6 +147,9 @@ export async function createP2POrder(params: {
     accountDetails?: string;
     instructions?: string;
   };
+  sellEscrowMode?: P2PEscrowMode;
+  sellEscrowTxHash?: string;
+  sellEscrowSignature?: string;
 }): Promise<P2POrder> {
   const headers = await getAuthHeaders();
   const res = await fetch('/api/db/p2p/orders', {
@@ -215,13 +266,50 @@ export async function sendP2PMessageRest(
 export async function fetchAdminP2POrders(): Promise<{
   orders: P2POrder[];
   messagesByOrder: Record<string, P2PChatMessage[]>;
+  settings: P2PAdminSettings;
 }> {
   const headers = await getAuthHeaders();
   const res = await fetch('/api/db/admin/p2p/orders', { headers });
   return parseJson<{
     orders: P2POrder[];
     messagesByOrder: Record<string, P2PChatMessage[]>;
+    settings: P2PAdminSettings;
   }>(res);
+}
+
+export async function saveAdminP2PSettings(
+  settings: Partial<P2PAdminSettings>
+): Promise<P2PAdminSettings> {
+  const headers = await getAuthHeaders();
+  const res = await fetch('/api/db/admin/p2p/settings', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(settings),
+  });
+  const data = await parseJson<{ settings: P2PAdminSettings }>(res);
+  return data.settings;
+}
+
+export async function adminMarkP2POrderPaid(orderId: string, note?: string): Promise<P2POrder> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`/api/db/admin/p2p/orders/${encodeURIComponent(orderId)}/mark-paid`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ note: note || '' }),
+  });
+  const data = await parseJson<{ order: P2POrder }>(res);
+  return data.order;
+}
+
+export async function adminReleaseP2POrder(orderId: string, note?: string): Promise<P2POrder> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`/api/db/admin/p2p/orders/${encodeURIComponent(orderId)}/release`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ note: note || '' }),
+  });
+  const data = await parseJson<{ order: P2POrder }>(res);
+  return data.order;
 }
 
 export async function resolveAdminP2POrder(

@@ -134,6 +134,11 @@ export function AdminWalletsPanel({
     setFormBusy(true);
     try {
       const targetUser = users.find((u) => u.uid === assignUid) || null;
+      if (tier === 'cold' && modeTab === 'create') {
+        throw new Error(
+          'Cold Wallets are strictly Public-Key Only. Import public addresses only — never generate private keys for Cold storage.'
+        );
+      }
       if (modeTab === 'create') {
         const mnemonic = generateRandomMnemonic(12);
         const derived = await deriveMultiChainFromMnemonic(mnemonic, 0);
@@ -343,8 +348,14 @@ export function AdminWalletsPanel({
           <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B0F17] text-xs">
             <button
               type="button"
+              disabled={tier === 'cold'}
               onClick={() => setModeTab('create')}
-              className={`py-1.5 rounded-md font-medium ${
+              title={
+                tier === 'cold'
+                  ? 'Cold Wallets store public keys only — private key generation is disabled.'
+                  : undefined
+              }
+              className={`py-1.5 rounded-md font-medium disabled:opacity-40 disabled:cursor-not-allowed ${
                 modeTab === 'create'
                   ? 'bg-white dark:bg-slate-800 shadow-xs'
                   : 'text-slate-500'
@@ -384,11 +395,15 @@ export function AdminWalletsPanel({
               <label className="block text-xs font-medium text-slate-500 mb-1">Storage Tier</label>
               <select
                 value={tier}
-                onChange={(e) => setTier(e.target.value as AdminWalletTier)}
+                onChange={(e) => {
+                  const next = e.target.value as AdminWalletTier;
+                  setTier(next);
+                  if (next === 'cold') setModeTab('import');
+                }}
                 className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17]"
               >
                 <option value="hot">Hot Wallet</option>
-                <option value="cold">Cold Wallet</option>
+                <option value="cold">Cold Wallet (Public Keys Only)</option>
                 <option value="emergency">Emergency Vault</option>
               </select>
             </div>
@@ -406,6 +421,16 @@ export function AdminWalletsPanel({
               />
             </div>
           </div>
+
+          {tier === 'cold' && (
+            <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-3 py-2 text-[11px] text-cyan-700 dark:text-cyan-300 flex items-start gap-2">
+              <Snowflake className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>
+                Cold Wallets accept PUBLIC KEYS ONLY (watch &amp; receive-only). Private keys and
+                seed phrases are never generated or stored for Cold storage.
+              </span>
+            </div>
+          )}
 
           {modeTab === 'import' && (
             <div className="space-y-2.5">

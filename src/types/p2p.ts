@@ -2,6 +2,8 @@ export type P2PAsset = 'USDT' | 'USD1' | 'CSC' | 'SOL' | 'ETH' | 'BNB';
 
 export type P2PAdSide = 'sell' | 'buy';
 
+export type P2PAdVisibility = 'public' | 'private';
+
 export type P2PPriceType = 'fixed' | 'floating';
 
 export type P2PEscrowMode = 'vault_balance' | 'onchain_proof';
@@ -15,6 +17,8 @@ export type P2POrderStatus =
   | 'cancelled'
   | 'resolved_buyer'
   | 'resolved_seller';
+
+export type P2PPrivateRequestStatus = 'pending' | 'approved' | 'declined' | 'converted';
 
 export type P2PRegion =
   | 'Africa'
@@ -73,6 +77,9 @@ export interface P2PAd {
   makerSolanaAddress: string;
   makerCscAddress: string;
   side: P2PAdSide;
+  visibility: P2PAdVisibility;
+  privateCode?: string;
+  allowedUsernames?: string[];
   asset: P2PAsset;
   countryCode: string;
   fiatCurrency: string;
@@ -82,6 +89,10 @@ export interface P2PAd {
   effectivePriceFiat: number;
   spotPriceUsd: number;
   availableCryptoAmount: number;
+  preFundedEscrow: boolean;
+  escrowLockedBalance: number;
+  escrowDepositMode?: P2PEscrowMode;
+  escrowDepositTxHash?: string;
   minFiatOrder: number;
   maxFiatOrder: number;
   paymentMethodIds: string[];
@@ -95,9 +106,57 @@ export interface P2PAd {
   updatedAt: number;
 }
 
+export interface P2PPrivateRequest {
+  id: string;
+  adId: string;
+  adPrivateCode: string;
+  adSide: P2PAdSide;
+  makerUid: string;
+  makerUsername: string;
+  requesterUid: string;
+  requesterUsername: string;
+  requesterWalletAddress: string;
+  requesterCompletedTrades: number;
+  asset: P2PAsset;
+  countryCode: string;
+  fiatCurrency: string;
+  unitPriceFiat: number;
+  requestedFiatAmount: number;
+  requestedCryptoAmount: number;
+  paymentMethodId: string;
+  paymentMethodName: string;
+  note: string;
+  status: P2PPrivateRequestStatus;
+  orderId?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface P2PEscrowReceivingWallet {
+  id: string;
+  label: string;
+  chain: 'evm' | 'solana' | 'csc';
+  walletType: 'cold_public' | 'hot_escrow';
+  publicAddress: string;
+  active: boolean;
+  createdAt: number;
+}
+
+export interface P2PAdminSettings {
+  minCompletedTradesToBuy: number;
+  whitelistedBuyerUsernames: string[];
+  autoMarkPaidOnProof: boolean;
+  autoReleaseEnabled: boolean;
+  autoReleaseAfterMins: number;
+  escrowReceivingWallets: P2PEscrowReceivingWallet[];
+  updatedAt: number;
+  updatedByHandle: string;
+}
+
 export interface P2POrder {
   id: string;
   adId: string;
+  isPrivateOrder?: boolean;
   asset: P2PAsset;
   countryCode: string;
   fiatCurrency: string;
@@ -155,8 +214,19 @@ export interface P2PChatMessage {
   createdAt: number;
 }
 
+export interface P2PTradeEligibility {
+  completedTrades: number;
+  minCompletedTradesToBuy: number;
+  canBuy: boolean;
+  whitelisted: boolean;
+  verifiedWallet: boolean;
+  boundWalletAddress: string;
+}
+
 export interface P2POverviewResponse {
   ads: P2PAd[];
+  myPrivateAds: P2PAd[];
+  myPrivateRequests: P2PPrivateRequest[];
   myOrders: P2POrder[];
   myPaymentProfiles: P2PSavedPaymentMethod[];
   spotPricesUsd: Record<P2PAsset, number>;
@@ -165,8 +235,18 @@ export interface P2POverviewResponse {
     solana: string;
     csc: string;
   };
+  escrowReceivingWallets: P2PEscrowReceivingWallet[];
+  buyGate: {
+    minCompletedTradesToBuy: number;
+    autoMarkPaidOnProof: boolean;
+    autoReleaseEnabled: boolean;
+    autoReleaseAfterMins: number;
+  };
+  myTradeEligibility: P2PTradeEligibility | null;
+  countryLiquidity: Record<string, { adsCount: number; assets: P2PAsset[] }>;
   stats: {
     activeAds: number;
+    privateAdsCount: number;
     openOrders: number;
     completedTrades: number;
     countriesSupported: number;

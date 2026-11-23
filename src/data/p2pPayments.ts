@@ -841,3 +841,131 @@ export function getAllPaymentMethodsCount(): number {
   );
   return localCount + GLOBAL_CROSS_BORDER_METHODS.length;
 }
+
+const TIMEZONE_TO_COUNTRY: Record<string, string> = {
+  'Africa/Nairobi': 'KE',
+  'Africa/Lagos': 'NG',
+  'Africa/Accra': 'GH',
+  'Africa/Johannesburg': 'ZA',
+  'Africa/Kampala': 'UG',
+  'Africa/Dar_es_Salaam': 'TZ',
+  'Africa/Kigali': 'RW',
+  'Africa/Cairo': 'EG',
+  'Africa/Casablanca': 'MA',
+  'Africa/Addis_Ababa': 'ET',
+  'Africa/Abidjan': 'CI',
+  'Africa/Douala': 'CM',
+  'America/New_York': 'US',
+  'America/Chicago': 'US',
+  'America/Denver': 'US',
+  'America/Los_Angeles': 'US',
+  'America/Toronto': 'CA',
+  'America/Vancouver': 'CA',
+  'America/Mexico_City': 'MX',
+  'Europe/London': 'GB',
+  'Europe/Berlin': 'EU',
+  'Europe/Paris': 'EU',
+  'Europe/Madrid': 'EU',
+  'Europe/Rome': 'EU',
+  'Europe/Amsterdam': 'EU',
+  'Europe/Zurich': 'CH',
+  'Europe/Warsaw': 'PL',
+  'Europe/Stockholm': 'SE',
+  'Europe/Oslo': 'NO',
+  'Europe/Copenhagen': 'DK',
+  'Europe/Prague': 'CZ',
+  'Europe/Budapest': 'HU',
+  'Europe/Bucharest': 'RO',
+  'Europe/Istanbul': 'TR',
+  'Europe/Kyiv': 'UA',
+  'Asia/Dubai': 'AE',
+  'Asia/Riyadh': 'SA',
+  'Asia/Qatar': 'QA',
+  'Asia/Kuwait': 'KW',
+  'Asia/Bahrain': 'BH',
+  'Asia/Muscat': 'OM',
+  'Asia/Jerusalem': 'IL',
+  'Asia/Amman': 'JO',
+  'Asia/Kolkata': 'IN',
+  'Asia/Calcutta': 'IN',
+  'Asia/Karachi': 'PK',
+  'Asia/Dhaka': 'BD',
+  'Asia/Manila': 'PH',
+  'Asia/Jakarta': 'ID',
+  'Asia/Ho_Chi_Minh': 'VN',
+  'Asia/Bangkok': 'TH',
+  'Asia/Kuala_Lumpur': 'MY',
+  'Asia/Singapore': 'SG',
+  'Asia/Shanghai': 'CN',
+  'Asia/Hong_Kong': 'HK',
+  'Asia/Taipei': 'TW',
+  'Asia/Tokyo': 'JP',
+  'Asia/Seoul': 'KR',
+  'Australia/Sydney': 'AU',
+  'Australia/Melbourne': 'AU',
+  'Pacific/Auckland': 'NZ',
+  'America/Sao_Paulo': 'BR',
+  'America/Argentina/Buenos_Aires': 'AR',
+  'America/Bogota': 'CO',
+  'America/Lima': 'PE',
+  'America/Santiago': 'CL',
+};
+
+export function detectCountryFromBrowser(): {
+  country: P2PCountryConfig;
+  source: string;
+  detectedTimeZone: string;
+  detectedLocale: string;
+} {
+  let tz = '';
+  let locale = '';
+  try {
+    tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    tz = '';
+  }
+  try {
+    locale = navigator.language || '';
+  } catch {
+    locale = '';
+  }
+
+  if (tz && TIMEZONE_TO_COUNTRY[tz]) {
+    return {
+      country: getCountryByCode(TIMEZONE_TO_COUNTRY[tz]),
+      source: 'Timezone Auto-Scan',
+      detectedTimeZone: tz,
+      detectedLocale: locale,
+    };
+  }
+
+  const localeRegion = locale.split('-')[1]?.toUpperCase() || '';
+  if (localeRegion) {
+    const match = P2P_COUNTRIES.find((c) => c.code === localeRegion);
+    if (match) {
+      return {
+        country: match,
+        source: 'Browser Locale Scan',
+        detectedTimeZone: tz,
+        detectedLocale: locale,
+      };
+    }
+    const eurozone = new Set(['DE', 'FR', 'ES', 'IT', 'NL', 'PT', 'BE', 'IE', 'AT', 'FI', 'GR']);
+    if (eurozone.has(localeRegion)) {
+      return {
+        country: getCountryByCode('EU'),
+        source: 'Eurozone Locale Scan',
+        detectedTimeZone: tz,
+        detectedLocale: locale,
+      };
+    }
+  }
+
+  return {
+    country: getCountryByCode('US'),
+    source: 'Default Global Baseline',
+    detectedTimeZone: tz,
+    detectedLocale: locale,
+  };
+}
+

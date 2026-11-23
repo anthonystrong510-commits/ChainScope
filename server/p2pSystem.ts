@@ -7,14 +7,19 @@ import { WebSocket, WebSocketServer } from 'ws';
 import type {
   P2PAd,
   P2PAdSide,
+  P2PAdVisibility,
+  P2PAdminSettings,
   P2PAsset,
   P2PChatMessage,
   P2PEscrowMode,
+  P2PEscrowReceivingWallet,
   P2POrder,
   P2POrderStatus,
   P2POverviewResponse,
   P2PPriceType,
+  P2PPrivateRequest,
   P2PSavedPaymentMethod,
+  P2PTradeEligibility,
 } from '../src/types/p2p.ts';
 import {
   getAllPaymentMethodsCount,
@@ -46,6 +51,22 @@ export interface P2PRouteDeps {
   getLiveSpotPricesUsd: () => Promise<Record<string, number>>;
 }
 
+interface StoredAdMeta {
+  visibility: P2PAdVisibility;
+  privateCode?: string;
+  allowedUsernames?: string[];
+  preFundedEscrow: boolean;
+  escrowLockedBalance: number;
+  escrowDepositMode?: P2PEscrowMode;
+  escrowDepositTxHash?: string;
+}
+
+interface StoredP2PMetaState {
+  settings: P2PAdminSettings;
+  adMeta: Record<string, StoredAdMeta>;
+  privateRequests: Record<string, P2PPrivateRequest>;
+}
+
 interface StoredP2PState {
   paymentProfiles: Record<string, P2PSavedPaymentMethod>;
   ads: Record<string, P2PAd>;
@@ -54,14 +75,52 @@ interface StoredP2PState {
 }
 
 const SNAPSHOT_P2P_ID = 'p2p_exchange_state_v1';
-const P2P_ESCROW_FEE_RATE = 0.0025; // 0.25% protocol escrow fee on released trade
+const SNAPSHOT_P2P_META_ID = 'p2p_exchange_meta_v1';
+const P2P_ESCROW_FEE_RATE = 0.0025;
 const SUPPORTED_ASSETS: P2PAsset[] = ['USDT', 'USD1', 'CSC', 'SOL', 'ETH', 'BNB'];
 
-const ESCROW_VAULTS = {
-  evm: '0x71C0B4D91E2A8F44E89B10A95C78E042A1B90C5E',
-  solana: '9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin',
-  csc: 'CSC1_P2P_ESCROW_VAULT',
-};
+const DEFAULT_RECEIVING_WALLETS: P2PEscrowReceivingWallet[] = [
+  {
+    id: 'escrow_evm_default',
+    label: 'ChainScope EVM Escrow Vault (Cold Public Key)',
+    chain: 'evm',
+    walletType: 'cold_public',
+    publicAddress: '0x71C0B4D91E2A8F44E89B10A95C78E042A1B90C5E',
+    active: true,
+    createdAt: 1730000000000,
+  },
+  {
+    id: 'escrow_sol_default',
+    label: 'ChainScope Solana Escrow Vault (Cold Public Key)',
+    chain: 'solana',
+    walletType: 'cold_public',
+    publicAddress: '9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin',
+    active: true,
+    createdAt: 1730000000000,
+  },
+  {
+    id: 'escrow_csc_default',
+    label: 'CSC-1 Protocol Escrow Reserve',
+    chain: 'csc',
+    walletType: 'hot_escrow',
+    publicAddress: 'CSC1_P2P_ESCROW_VAULT',
+    active: true,
+    createdAt: 1730000000000,
+  },
+];
+
+function buildDefaultSettings(): P2PAdminSettings {
+  return {
+    minCompletedTradesToBuy: 0,
+    whitelistedBuyerUsernames: [],
+    autoMarkPaidOnProof: true,
+    autoReleaseEnabled: false,
+    autoReleaseAfterMins: 15,
+    escrowReceivingWallets: DEFAULT_RECEIVING_WALLETS,
+    updatedAt: Date.now(),
+    updatedByHandle: 'system',
+  };
+}
 
 let p2pQueue: Promise<unknown> = Promise.resolve();
 function withP2PLock<T>(task: () => Promise<T>): Promise<T> {
@@ -75,6 +134,10 @@ function withP2PLock<T>(task: () => Promise<T>): Promise<T> {
 
 function makeId(prefix: string): string {
   return `${prefix}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+}
+
+function makePrivateCode(): string {
+  return `PRIV-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 }
 
 function toMs(val: unknown): number {
@@ -142,7 +205,7 @@ function rowToOrder(r: Record<string, unknown>): P2POrder {
   return {
     id: String(r.id),
     adId: String(r.ad_id || ''),
-    asset: (String(r.asset || 'USDT') as P2PAsset),
+    asset: String(r.asset || 'USDT') as P2PAsset,
     countryCode: String(r.country_code || 'US'),
     fiatCurrency: String(r.fiat_currency || 'USD'),
     unitPriceFiat: Number(r.unit_price_fiat ?? 0),
@@ -163,7 +226,7 @@ function rowToOrder(r: Record<string, unknown>): P2POrder {
       accountDetails: String(snap.accountDetails || ''),
       instructions: String(snap.instructions || ''),
     },
-    escrowMode: (String(r.escrow_mode || 'vault_balance') as P2PEscrowMode),
+    escrowMode: String(r.escrow_mode || 'vault_balance') as P2PEscrowMode,
     escrowAssetLocked: Boolean(r.escrow_asset_locked),
     escrowLockedAmount: Number(r.escrow_locked_amount ?? 0),
     escrowTxHash: String(r.escrow_tx_hash || ''),
@@ -172,7 +235,7 @@ function rowToOrder(r: Record<string, unknown>): P2POrder {
     fiatProofRef: String(r.fiat_proof_ref || ''),
     fiatProofImage: String(r.fiat_proof_image || ''),
     fiatProofNote: String(r.fiat_proof_note || ''),
-    status: (String(r.status || 'awaiting_escrow') as P2POrderStatus),
+    status: String(r.status || 'awaiting_escrow') as P2POrderStatus,
     disputeReason: String(r.dispute_reason || ''),
     disputedByUid: String(r.disputed_by_uid || ''),
     adminResolutionNote: String(r.admin_resolution_note || ''),
@@ -193,8 +256,8 @@ function rowToMessage(r: Record<string, unknown>): P2PChatMessage {
     orderId: String(r.order_id || ''),
     senderUid: String(r.sender_uid || ''),
     senderUsername: String(r.sender_username || ''),
-    senderRole: (String(r.sender_role || 'buyer') as P2PChatMessage['senderRole']),
-    kind: (String(r.kind || 'text') as P2PChatMessage['kind']),
+    senderRole: String(r.sender_role || 'buyer') as P2PChatMessage['senderRole'],
+    kind: String(r.kind || 'text') as P2PChatMessage['kind'],
     text: String(r.text || ''),
     attachmentImage: r.attachment_image ? String(r.attachment_image) : undefined,
     txHash: r.tx_hash ? String(r.tx_hash) : undefined,
@@ -202,7 +265,7 @@ function rowToMessage(r: Record<string, unknown>): P2PChatMessage {
   };
 }
 
-function rowToAdBase(r: Record<string, unknown>) {
+function rowToAdBase(r: Record<string, unknown>, meta?: StoredAdMeta): P2PAd {
   return {
     id: String(r.id),
     makerUid: String(r.maker_uid || ''),
@@ -212,14 +275,25 @@ function rowToAdBase(r: Record<string, unknown>) {
     makerEvmAddress: String(r.maker_evm_address || ''),
     makerSolanaAddress: String(r.maker_solana_address || ''),
     makerCscAddress: String(r.maker_csc_address || ''),
-    side: (String(r.side || 'sell') as P2PAdSide),
-    asset: (String(r.asset || 'USDT') as P2PAsset),
+    side: String(r.side || 'sell') as P2PAdSide,
+    visibility: meta?.visibility || (String(r.visibility || 'public') as P2PAdVisibility),
+    privateCode: meta?.privateCode || (r.private_code ? String(r.private_code) : undefined),
+    allowedUsernames: meta?.allowedUsernames || [],
+    asset: String(r.asset || 'USDT') as P2PAsset,
     countryCode: String(r.country_code || 'US'),
     fiatCurrency: String(r.fiat_currency || 'USD'),
-    priceType: (String(r.price_type || 'fixed') as P2PPriceType),
+    priceType: String(r.price_type || 'fixed') as P2PPriceType,
     fixedPriceFiat: Number(r.fixed_price_fiat ?? 0),
     floatingMarginPct: Number(r.floating_margin_pct ?? 0),
+    effectivePriceFiat: Number(r.fixed_price_fiat ?? 0),
+    spotPriceUsd: 1,
     availableCryptoAmount: Number(r.available_crypto_amount ?? 0),
+    preFundedEscrow:
+      meta?.preFundedEscrow ?? Boolean(r.pre_funded_escrow ?? String(r.side) === 'sell'),
+    escrowLockedBalance:
+      meta?.escrowLockedBalance ?? Number(r.escrow_locked_balance ?? r.available_crypto_amount ?? 0),
+    escrowDepositMode: meta?.escrowDepositMode,
+    escrowDepositTxHash: meta?.escrowDepositTxHash,
     minFiatOrder: Number(r.min_fiat_order ?? 10),
     maxFiatOrder: Number(r.max_fiat_order ?? 5000),
     paymentMethodIds: Array.isArray(r.payment_method_ids)
@@ -229,18 +303,85 @@ function rowToAdBase(r: Record<string, unknown>) {
       ? (r.payment_method_names as unknown[]).map(String)
       : [],
     paymentWindowMins: Number(r.payment_window_mins ?? 15),
-    escrowMode: (String(r.escrow_mode || 'vault_balance') as P2PEscrowMode),
+    escrowMode: String(r.escrow_mode || 'vault_balance') as P2PEscrowMode,
     terms: String(r.terms || ''),
-    status: (String(r.status || 'active') as P2PAd['status']),
+    status: String(r.status || 'active') as P2PAd['status'],
+    makerStats: {
+      completedOrders: 0,
+      completionRatePct: 100,
+      avgReleaseMins: 4,
+      verifiedWallet: Boolean(r.maker_wallet_address),
+    },
     createdAt: toMs(r.created_at),
     updatedAt: toMs(r.updated_at),
   };
 }
 
+async function loadP2PMeta(supabase: SupabaseClient): Promise<StoredP2PMetaState> {
+  const { data } = await supabase
+    .from('chainscope_wallet_snapshots')
+    .select('chains')
+    .eq('id', SNAPSHOT_P2P_META_ID)
+    .maybeSingle();
+
+  const raw = (data?.chains || null) as Partial<StoredP2PMetaState> | null;
+  const def = buildDefaultSettings();
+  const settings: P2PAdminSettings = {
+    minCompletedTradesToBuy: Math.max(
+      0,
+      Math.round(Number(raw?.settings?.minCompletedTradesToBuy ?? def.minCompletedTradesToBuy))
+    ),
+    whitelistedBuyerUsernames: Array.isArray(raw?.settings?.whitelistedBuyerUsernames)
+      ? raw!.settings!.whitelistedBuyerUsernames.map((x) => String(x).toLowerCase())
+      : [],
+    autoMarkPaidOnProof: raw?.settings?.autoMarkPaidOnProof ?? def.autoMarkPaidOnProof,
+    autoReleaseEnabled: Boolean(raw?.settings?.autoReleaseEnabled ?? def.autoReleaseEnabled),
+    autoReleaseAfterMins: Math.max(
+      1,
+      Math.round(Number(raw?.settings?.autoReleaseAfterMins ?? def.autoReleaseAfterMins))
+    ),
+    escrowReceivingWallets:
+      Array.isArray(raw?.settings?.escrowReceivingWallets) &&
+      raw!.settings!.escrowReceivingWallets.length > 0
+        ? raw!.settings!.escrowReceivingWallets
+        : DEFAULT_RECEIVING_WALLETS,
+    updatedAt: Number(raw?.settings?.updatedAt ?? def.updatedAt),
+    updatedByHandle: String(raw?.settings?.updatedByHandle || def.updatedByHandle),
+  };
+
+  return {
+    settings,
+    adMeta: raw?.adMeta && typeof raw.adMeta === 'object' ? raw.adMeta : {},
+    privateRequests:
+      raw?.privateRequests && typeof raw.privateRequests === 'object' ? raw.privateRequests : {},
+  };
+}
+
+async function saveP2PMeta(supabase: SupabaseClient, meta: StoredP2PMetaState) {
+  const { error } = await supabase.from('chainscope_wallet_snapshots').upsert(
+    {
+      id: SNAPSHOT_P2P_META_ID,
+      wallet_id: 'p2p_exchange_meta',
+      label: 'ChainScope P2P Settings, Escrow Wallets & Private Requests',
+      evm_address: '',
+      solana_address: '',
+      total_usd: Object.keys(meta.privateRequests).length,
+      chains: meta,
+      scanned_at: new Date().toISOString(),
+    },
+    { onConflict: 'id' }
+  );
+  if (error) throw new Error(error.message);
+}
+
 async function loadP2PState(
   supabase: SupabaseClient
-): Promise<{ state: StoredP2PState; mode: 'normalized' | 'snapshot' }> {
-  const normalized = await detectNormalizedP2P(supabase);
+): Promise<{ state: StoredP2PState; meta: StoredP2PMetaState; mode: 'normalized' | 'snapshot' }> {
+  const [normalized, meta] = await Promise.all([
+    detectNormalizedP2P(supabase),
+    loadP2PMeta(supabase),
+  ]);
+
   if (normalized) {
     const [profRes, adRes, ordRes, msgRes] = await Promise.all([
       supabase.from('chainscope_p2p_payment_profiles').select('*'),
@@ -264,18 +405,8 @@ async function loadP2PState(
 
       const ads: Record<string, P2PAd> = {};
       for (const row of (adRes.data || []) as Array<Record<string, unknown>>) {
-        const base = rowToAdBase(row);
-        ads[base.id] = {
-          ...base,
-          effectivePriceFiat: base.fixedPriceFiat,
-          spotPriceUsd: 1,
-          makerStats: {
-            completedOrders: 0,
-            completionRatePct: 100,
-            avgReleaseMins: 4,
-            verifiedWallet: Boolean(base.makerWalletAddress),
-          },
-        };
+        const id = String(row.id);
+        ads[id] = rowToAdBase(row, meta.adMeta[id]);
       }
 
       const messages: Record<string, P2PChatMessage[]> = {};
@@ -285,7 +416,7 @@ async function loadP2PState(
         messages[m.orderId].push(m);
       }
 
-      return { state: { paymentProfiles, ads, orders, messages }, mode: 'normalized' };
+      return { state: { paymentProfiles, ads, orders, messages }, meta, mode: 'normalized' };
     }
   }
 
@@ -296,13 +427,29 @@ async function loadP2PState(
     .maybeSingle();
 
   const raw = (data?.chains || null) as Partial<StoredP2PState> | null;
+  const hydratedAds: Record<string, P2PAd> = {};
+  for (const [id, ad] of Object.entries(raw?.ads || {})) {
+    const adMeta = meta.adMeta[id];
+    hydratedAds[id] = {
+      ...ad,
+      visibility: adMeta?.visibility || ad.visibility || 'public',
+      privateCode: adMeta?.privateCode || ad.privateCode,
+      allowedUsernames: adMeta?.allowedUsernames || ad.allowedUsernames || [],
+      preFundedEscrow: adMeta?.preFundedEscrow ?? ad.preFundedEscrow ?? false,
+      escrowLockedBalance: adMeta?.escrowLockedBalance ?? ad.escrowLockedBalance ?? 0,
+      escrowDepositMode: adMeta?.escrowDepositMode || ad.escrowDepositMode,
+      escrowDepositTxHash: adMeta?.escrowDepositTxHash || ad.escrowDepositTxHash,
+    };
+  }
+
   return {
     state: {
       paymentProfiles: raw?.paymentProfiles || {},
-      ads: raw?.ads || {},
+      ads: hydratedAds,
       orders: raw?.orders || {},
       messages: raw?.messages || {},
     },
+    meta,
     mode: 'snapshot',
   };
 }
@@ -375,10 +522,21 @@ async function deletePersistedProfile(
 async function persistAd(
   supabase: SupabaseClient,
   state: StoredP2PState,
+  meta: StoredP2PMetaState,
   mode: 'normalized' | 'snapshot',
   ad: P2PAd
 ) {
   state.ads[ad.id] = ad;
+  meta.adMeta[ad.id] = {
+    visibility: ad.visibility || 'public',
+    privateCode: ad.privateCode,
+    allowedUsernames: ad.allowedUsernames || [],
+    preFundedEscrow: ad.preFundedEscrow,
+    escrowLockedBalance: ad.escrowLockedBalance,
+    escrowDepositMode: ad.escrowDepositMode,
+    escrowDepositTxHash: ad.escrowDepositTxHash,
+  };
+
   if (mode === 'normalized') {
     const { error } = await supabase.from('chainscope_p2p_ads').upsert(
       {
@@ -415,6 +573,7 @@ async function persistAd(
   } else {
     await saveP2PSnapshot(supabase, state);
   }
+  await saveP2PMeta(supabase, meta);
 }
 
 async function persistOrder(
@@ -553,14 +712,63 @@ async function resolveBoundTraderIdentity(
   };
 }
 
-function getVaultAddressForAsset(asset: P2PAsset): string {
-  if (asset === 'SOL') return ESCROW_VAULTS.solana;
-  if (asset === 'ETH' || asset === 'BNB') return ESCROW_VAULTS.evm;
-  return ESCROW_VAULTS.csc;
+function getEscrowVaultsMap(settings: P2PAdminSettings): {
+  evm: string;
+  solana: string;
+  csc: string;
+} {
+  const findActive = (chain: 'evm' | 'solana' | 'csc', fallback: string) =>
+    settings.escrowReceivingWallets.find((w) => w.chain === chain && w.active)?.publicAddress ||
+    fallback;
+  return {
+    evm: findActive('evm', DEFAULT_RECEIVING_WALLETS[0].publicAddress),
+    solana: findActive('solana', DEFAULT_RECEIVING_WALLETS[1].publicAddress),
+    csc: findActive('csc', DEFAULT_RECEIVING_WALLETS[2].publicAddress),
+  };
+}
+
+function getVaultAddressForAsset(asset: P2PAsset, settings: P2PAdminSettings): string {
+  const map = getEscrowVaultsMap(settings);
+  if (asset === 'SOL') return map.solana;
+  if (asset === 'ETH' || asset === 'BNB') return map.evm;
+  return map.csc;
 }
 
 function isVaultCapableAsset(asset: P2PAsset): boolean {
   return asset === 'CSC' || asset === 'USDT' || asset === 'USD1' || asset === 'SOL';
+}
+
+function validateTxHashFormat(raw: string): boolean {
+  const clean = raw.trim();
+  return clean.length >= 24 && /^(0x[a-fA-F0-9]{20,}|[1-9A-HJ-NP-Za-km-z]{32,120})$/.test(clean);
+}
+
+function computeCompletedTradesForUid(orders: P2POrder[], uid: string): number {
+  return orders.filter(
+    (o) =>
+      (o.buyerUid === uid || o.sellerUid === uid) &&
+      (o.status === 'released' || o.status === 'resolved_buyer')
+  ).length;
+}
+
+function computeBuyEligibility(
+  orders: P2POrder[],
+  settings: P2PAdminSettings,
+  identity: { uid: string; username: string; primaryWallet: string; verifiedWallet: boolean }
+): P2PTradeEligibility {
+  const completedTrades = computeCompletedTradesForUid(orders, identity.uid);
+  const whitelisted = settings.whitelistedBuyerUsernames.includes(
+    identity.username.toLowerCase()
+  );
+  const minReq = settings.minCompletedTradesToBuy;
+  return {
+    completedTrades,
+    minCompletedTradesToBuy: minReq,
+    canBuy: completedTrades >= minReq || whitelisted,
+    whitelisted,
+    verifiedWallet: identity.verifiedWallet,
+    boundWalletAddress: identity.primaryWallet,
+  };
 }
 
 function enrichAd(
@@ -645,6 +853,82 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
       ETH: live.ethereum || 3100,
       BNB: live.binancecoin || 615,
     };
+  }
+
+  async function debitSellerVault(
+    supabase: SupabaseClient,
+    uid: string,
+    username: string,
+    asset: P2PAsset,
+    amount: number,
+    note: string
+  ): Promise<string> {
+    if (asset === 'SOL') {
+      const { data: userRow, error: userErr } = await supabase
+        .from('chainscope_users')
+        .select('sol_balance')
+        .eq('uid', uid)
+        .maybeSingle();
+      if (userErr) throw new Error(userErr.message);
+      const curSol = Number(userRow?.sol_balance ?? 0);
+      if (curSol + 1e-9 < amount) {
+        throw new Error(
+          `Insufficient SOL vault balance (${curSol.toFixed(4)} SOL available, need ${amount.toFixed(4)}). Switch to On-Chain TX Escrow or deposit coins first.`
+        );
+      }
+      const nextSol = Number((curSol - amount).toFixed(6));
+      const { error: updErr } = await supabase
+        .from('chainscope_users')
+        .update({ sol_balance: nextSol, updated_at: new Date().toISOString() })
+        .eq('uid', uid);
+      if (updErr) throw new Error(updErr.message);
+      return `vault_sol_${crypto.randomBytes(12).toString('hex')}`;
+    }
+
+    const op = await executeCscVaultEscrowOp(supabase, {
+      action: 'debit',
+      uid,
+      handle: username,
+      asset: asset as 'CSC' | 'USDT' | 'USD1',
+      amount,
+      note,
+    });
+    return op.txHash;
+  }
+
+  async function creditVault(
+    supabase: SupabaseClient,
+    escrowMode: P2PEscrowMode,
+    asset: P2PAsset,
+    recipientUid: string,
+    recipientHandle: string,
+    amount: number,
+    note: string
+  ) {
+    if (escrowMode !== 'vault_balance' || amount <= 0) return;
+    if (asset === 'SOL') {
+      const { data: userRow } = await supabase
+        .from('chainscope_users')
+        .select('sol_balance')
+        .eq('uid', recipientUid)
+        .maybeSingle();
+      const nextSol = Number((Number(userRow?.sol_balance ?? 0) + amount).toFixed(6));
+      await supabase
+        .from('chainscope_users')
+        .update({ sol_balance: nextSol, updated_at: new Date().toISOString() })
+        .eq('uid', recipientUid);
+      return;
+    }
+    if (asset === 'CSC' || asset === 'USDT' || asset === 'USD1') {
+      await executeCscVaultEscrowOp(supabase, {
+        action: 'credit',
+        uid: recipientUid,
+        handle: recipientHandle,
+        asset,
+        amount,
+        note,
+      });
+    }
   }
 
   // --- REAL-TIME WEBSOCKET CHAT & ESCROW HUB (/ws/p2p) ---
@@ -790,7 +1074,9 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
                       order.sellerUid === user.uid ||
                       clientMeta.isAdmin;
                     if (!allowed) {
-                      ws.send(JSON.stringify({ type: 'ws:error', error: 'Access denied to trade room.' }));
+                      ws.send(
+                        JSON.stringify({ type: 'ws:error', error: 'Access denied to trade room.' })
+                      );
                       return;
                     }
 
@@ -887,7 +1173,6 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
                       return created;
                     });
 
-                    // Clear typer upon sending
                     const typers = roomTyping.get(orderId);
                     if (typers?.delete(user.uid)) {
                       broadcastToRoom(orderId, {
@@ -929,7 +1214,6 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
       }
     });
 
-    // Sweep stale typing indicators periodically
     const typingSweep = setInterval(() => {
       const now = Date.now();
       for (const [roomId, map] of roomTyping.entries()) {
@@ -977,20 +1261,298 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     broadcastToRoom(order.id, { type: 'order:updated', orderId: order.id, order });
   }
 
+  // --- AUTOMATED ESCROW RELEASE SWEEP ---
+  async function runP2PAutomationSweep(supabase: SupabaseClient) {
+    await withP2PLock(async () => {
+      const { state, meta, mode } = await loadP2PState(supabase);
+      if (!meta.settings.autoReleaseEnabled) return;
+      const thresholdMs = Math.max(1, meta.settings.autoReleaseAfterMins) * 60_000;
+      const now = Date.now();
+
+      for (const ord of Object.values(state.orders)) {
+        if (ord.status !== 'fiat_paid' || !ord.escrowAssetLocked) continue;
+        const paidAt = ord.fiatPaidAt || ord.updatedAt;
+        if (now - paidAt < thresholdMs) continue;
+
+        await creditVault(
+          supabase,
+          ord.escrowMode,
+          ord.asset,
+          ord.buyerUid,
+          ord.buyerUsername,
+          ord.netBuyerCrypto,
+          `P2P Auto-Release #${ord.id} from @${ord.sellerUsername}`
+        );
+
+        ord.status = 'released';
+        ord.completedAt = now;
+        ord.updatedAt = now;
+        ord.adminResolutionNote = `Automated release after ${meta.settings.autoReleaseAfterMins}m verified fiat proof window.`;
+
+        await persistOrder(supabase, state, mode, ord);
+        await appendSystemMessageAndBroadcast(
+          supabase,
+          state,
+          mode,
+          ord,
+          `Automated Escrow Release completed: ${ord.netBuyerCrypto} ${ord.asset} released to Buyer @${ord.buyerUsername} after ${meta.settings.autoReleaseAfterMins}m undisputed fiat proof window.`
+        );
+      }
+    });
+  }
+
+  const autoSweepTimer = setInterval(() => {
+    const sb = getSupabaseAdminClient();
+    if (sb) {
+      void runP2PAutomationSweep(sb).catch(() => {});
+    }
+  }, 30_000);
+  autoSweepTimer.unref();
+
+  // --- SHARED ORDER CREATION HELPER (PUBLIC + PRIVATE REQUEST APPROVAL) ---
+  async function createOrderFromAdInternal(
+    supabase: SupabaseClient,
+    state: StoredP2PState,
+    meta: StoredP2PMetaState,
+    mode: 'normalized' | 'snapshot',
+    params: {
+      ad: P2PAd;
+      rawAd: P2PAd;
+      takerIdentity: Awaited<ReturnType<typeof resolveBoundTraderIdentity>>;
+      fiatAmount: number;
+      paymentMethodId: string;
+      isPrivateOrder: boolean;
+      sellerPaymentDetails?: {
+        accountHolder?: string;
+        accountDetails?: string;
+        instructions?: string;
+      };
+      takerSellEscrow?: {
+        mode?: P2PEscrowMode;
+        txHash?: string;
+        signature?: string;
+      };
+    }
+  ): Promise<P2POrder> {
+    const { ad, rawAd, takerIdentity, fiatAmount } = params;
+    if (!Number.isFinite(fiatAmount) || fiatAmount < ad.minFiatOrder || fiatAmount > ad.maxFiatOrder) {
+      throw new Error(
+        `Order amount must be between ${ad.minFiatOrder} and ${ad.maxFiatOrder} ${ad.fiatCurrency}.`
+      );
+    }
+
+    const cryptoAmount = Number((fiatAmount / Math.max(0.000001, ad.effectivePriceFiat)).toFixed(6));
+    if (cryptoAmount <= 0 || cryptoAmount > ad.availableCryptoAmount + 1e-6) {
+      throw new Error(
+        `Requested ${cryptoAmount} ${ad.asset} exceeds ad availability (${ad.availableCryptoAmount} ${ad.asset}).`
+      );
+    }
+
+    const chosenMethodId =
+      ad.paymentMethodIds.find((m) => m === params.paymentMethodId) || ad.paymentMethodIds[0];
+    const chosenMethodName =
+      getPaymentMethodById(chosenMethodId, ad.countryCode)?.name ||
+      ad.paymentMethodNames[0] ||
+      chosenMethodId;
+
+    const sellerUid = ad.side === 'sell' ? ad.makerUid : takerIdentity.uid;
+    const sellerUsername = ad.side === 'sell' ? ad.makerUsername : takerIdentity.username;
+    const sellerWalletAddress =
+      ad.side === 'sell' ? ad.makerWalletAddress : takerIdentity.primaryWallet;
+
+    const buyerUid = ad.side === 'sell' ? takerIdentity.uid : ad.makerUid;
+    const buyerUsername = ad.side === 'sell' ? takerIdentity.username : ad.makerUsername;
+    const buyerWalletAddress =
+      ad.side === 'sell' ? takerIdentity.primaryWallet : ad.makerWalletAddress;
+
+    const sellerSavedProfile = Object.values(state.paymentProfiles).find(
+      (p) => p.ownerUid === sellerUid && p.methodId === chosenMethodId
+    );
+
+    const paymentSnapshot = {
+      accountHolder:
+        String(params.sellerPaymentDetails?.accountHolder || '').trim() ||
+        sellerSavedProfile?.accountHolder ||
+        `@${sellerUsername}`,
+      accountDetails:
+        String(params.sellerPaymentDetails?.accountDetails || '').trim() ||
+        sellerSavedProfile?.accountDetails ||
+        'Share receiving details in trade chat before sending fiat.',
+      instructions:
+        String(params.sellerPaymentDetails?.instructions || '').trim() ||
+        sellerSavedProfile?.instructions ||
+        ad.terms ||
+        'Avoid crypto keywords in payment memos.',
+    };
+
+    const feeCrypto = Number((cryptoAmount * P2P_ESCROW_FEE_RATE).toFixed(6));
+    const netBuyerCrypto = Number(Math.max(0, cryptoAmount - feeCrypto).toFixed(6));
+    const now = Date.now();
+    const orderId = makeId('p2po');
+    const vaultAddress = getVaultAddressForAsset(ad.asset, meta.settings);
+
+    let escrowMode: P2PEscrowMode = ad.escrowDepositMode || ad.escrowMode;
+    let escrowAssetLocked = false;
+    let escrowLockedAmount = 0;
+    let escrowTxHash = '';
+    let escrowSignature = '';
+    let initialStatus: P2POrderStatus = 'awaiting_escrow';
+    let escrowLockedAt: number | undefined;
+
+    if (ad.side === 'sell') {
+      // Sell Ad was pre-funded upfront upon ad creation! Draw from ad's escrow reserve immediately.
+      if (rawAd.preFundedEscrow && rawAd.escrowLockedBalance + 1e-6 >= cryptoAmount) {
+        rawAd.escrowLockedBalance = Number(
+          Math.max(0, rawAd.escrowLockedBalance - cryptoAmount).toFixed(6)
+        );
+        escrowMode = rawAd.escrowDepositMode || rawAd.escrowMode;
+        escrowAssetLocked = true;
+        escrowLockedAmount = cryptoAmount;
+        escrowTxHash = rawAd.escrowDepositTxHash || `prefunded_${rawAd.id}`;
+        initialStatus = 'escrow_locked';
+        escrowLockedAt = now;
+      }
+    } else {
+      // Ad is a BUY ad -> Taker IS SELLING crypto! Require Taker to deposit coins when creating this Sell order!
+      const requestedMode: P2PEscrowMode =
+        params.takerSellEscrow?.mode === 'onchain_proof'
+          ? 'onchain_proof'
+          : isVaultCapableAsset(ad.asset)
+          ? 'vault_balance'
+          : 'onchain_proof';
+      escrowMode = requestedMode;
+
+      if (requestedMode === 'vault_balance') {
+        escrowTxHash = await debitSellerVault(
+          supabase,
+          sellerUid,
+          sellerUsername,
+          ad.asset,
+          cryptoAmount,
+          `P2P Upfront Sell Order Deposit #${orderId}`
+        );
+        escrowAssetLocked = true;
+        escrowLockedAmount = cryptoAmount;
+        initialStatus = 'escrow_locked';
+        escrowLockedAt = now;
+      } else {
+        const cleanTx = String(params.takerSellEscrow?.txHash || '').trim();
+        if (cleanTx) {
+          if (!validateTxHashFormat(cleanTx)) {
+            throw new Error(
+              'Provide a valid on-chain TX hash transferring coins to the Escrow Receiving Wallet.'
+            );
+          }
+          escrowTxHash = cleanTx;
+          escrowSignature = String(params.takerSellEscrow?.signature || '').trim().slice(0, 260);
+          escrowAssetLocked = true;
+          escrowLockedAmount = cryptoAmount;
+          initialStatus = 'escrow_locked';
+          escrowLockedAt = now;
+        } else if (params.isPrivateOrder) {
+          // Maker approved a private buy request; Seller locks on-chain TX as Step 1 in Trade Room
+          initialStatus = 'awaiting_escrow';
+        } else {
+          throw new Error(
+            'Sell orders require depositing crypto upfront. Switch to Platform Vault Deposit or paste your on-chain TX hash to the Escrow Receiving Wallet.'
+          );
+        }
+      }
+    }
+
+    const createdOrder: P2POrder = {
+      id: orderId,
+      adId: ad.id,
+      isPrivateOrder: params.isPrivateOrder,
+      asset: ad.asset,
+      countryCode: ad.countryCode,
+      fiatCurrency: ad.fiatCurrency,
+      unitPriceFiat: ad.effectivePriceFiat,
+      cryptoAmount,
+      fiatAmount: Number(fiatAmount.toFixed(2)),
+      feeCrypto,
+      netBuyerCrypto,
+      buyerUid,
+      buyerUsername,
+      buyerWalletAddress,
+      sellerUid,
+      sellerUsername,
+      sellerWalletAddress,
+      paymentMethodId: chosenMethodId,
+      paymentMethodName: chosenMethodName,
+      paymentSnapshot,
+      escrowMode,
+      escrowAssetLocked,
+      escrowLockedAmount,
+      escrowTxHash,
+      escrowSignature,
+      escrowVaultAddress: vaultAddress,
+      fiatProofRef: '',
+      fiatProofImage: '',
+      fiatProofNote: '',
+      status: initialStatus,
+      disputeReason: '',
+      disputedByUid: '',
+      adminResolutionNote: '',
+      resolvedByUid: '',
+      resolvedByHandle: '',
+      paymentDeadlineAt: now + ad.paymentWindowMins * 60_000,
+      createdAt: now,
+      updatedAt: now,
+      escrowLockedAt,
+    };
+
+    rawAd.availableCryptoAmount = Number(
+      Math.max(0, rawAd.availableCryptoAmount - cryptoAmount).toFixed(6)
+    );
+    if (rawAd.availableCryptoAmount <= 0.000001) {
+      rawAd.status = 'paused';
+    }
+    rawAd.updatedAt = now;
+
+    await persistAd(supabase, state, meta, mode, rawAd);
+    await persistOrder(supabase, state, mode, createdOrder);
+    await appendSystemMessageAndBroadcast(
+      supabase,
+      state,
+      mode,
+      createdOrder,
+      escrowAssetLocked
+        ? `Escrow Pre-Funded & Locked (${cryptoAmount} ${ad.asset}) between Seller @${sellerUsername} and Buyer @${buyerUsername}. Buyer may immediately pay ${createdOrder.fiatAmount} ${createdOrder.fiatCurrency} via ${chosenMethodName} and attach receipt proof.`
+        : `Trade opened between Buyer @${buyerUsername} and Seller @${sellerUsername} for ${cryptoAmount} ${ad.asset}.`,
+      escrowTxHash ? { kind: 'escrow_proof', txHash: escrowTxHash } : {}
+    );
+
+    return createdOrder;
+  }
+
   // --- 1. PUBLIC/AUTHED MARKETPLACE OVERVIEW ---
   app.get('/api/db/p2p/overview', async (req, res) => {
     const supabase = getSupabaseAdminClient();
     const spotPricesUsd = await buildSpotPrices(supabase);
 
     if (!supabase) {
+      const def = buildDefaultSettings();
       const empty: P2POverviewResponse = {
         ads: [],
+        myPrivateAds: [],
+        myPrivateRequests: [],
         myOrders: [],
         myPaymentProfiles: [],
         spotPricesUsd,
-        escrowVaults: ESCROW_VAULTS,
+        escrowVaults: getEscrowVaultsMap(def),
+        escrowReceivingWallets: def.escrowReceivingWallets,
+        buyGate: {
+          minCompletedTradesToBuy: def.minCompletedTradesToBuy,
+          autoMarkPaidOnProof: def.autoMarkPaidOnProof,
+          autoReleaseEnabled: def.autoReleaseEnabled,
+          autoReleaseAfterMins: def.autoReleaseAfterMins,
+        },
+        myTradeEligibility: null,
+        countryLiquidity: {},
         stats: {
           activeAds: 0,
+          privateAdsCount: 0,
           openOrders: 0,
           completedTrades: 0,
           countriesSupported: P2P_COUNTRIES.length,
@@ -1013,12 +1575,32 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
 
     try {
-      const { state } = await loadP2PState(supabase);
+      await runP2PAutomationSweep(supabase).catch(() => {});
+      const { state, meta } = await loadP2PState(supabase);
       const allOrders = Object.values(state.orders).sort((a, b) => b.updatedAt - a.updatedAt);
-      const allAds = Object.values(state.ads)
+
+      const allNonClosedAds = Object.values(state.ads)
         .filter((a) => a.status !== 'closed')
         .sort((a, b) => b.updatedAt - a.updatedAt)
         .map((ad) => enrichAd(ad, allOrders, spotPricesUsd));
+
+      // Public orderbook NEVER leaks private ads
+      const publicAds = allNonClosedAds.filter((a) => a.visibility !== 'private');
+      const myPrivateAds = authUser
+        ? allNonClosedAds.filter((a) => a.visibility === 'private' && a.makerUid === authUser!.uid)
+        : [];
+
+      const countryLiquidity: Record<string, { adsCount: number; assets: P2PAsset[] }> = {};
+      for (const ad of publicAds) {
+        if (ad.status !== 'active') continue;
+        if (!countryLiquidity[ad.countryCode]) {
+          countryLiquidity[ad.countryCode] = { adsCount: 0, assets: [] };
+        }
+        countryLiquidity[ad.countryCode].adsCount += 1;
+        if (!countryLiquidity[ad.countryCode].assets.includes(ad.asset)) {
+          countryLiquidity[ad.countryCode].assets.push(ad.asset);
+        }
+      }
 
       const myOrders = authUser
         ? allOrders.filter((o) => o.buyerUid === authUser!.uid || o.sellerUid === authUser!.uid)
@@ -1028,15 +1610,40 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
             .filter((p) => p.ownerUid === authUser!.uid)
             .sort((a, b) => b.updatedAt - a.updatedAt)
         : [];
+      const myPrivateRequests = authUser
+        ? Object.values(meta.privateRequests)
+            .filter((r) => r.makerUid === authUser!.uid || r.requesterUid === authUser!.uid)
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+        : [];
+
+      let myTradeEligibility: P2PTradeEligibility | null = null;
+      if (authUser) {
+        const identity = await resolveBoundTraderIdentity(supabase, authUser);
+        myTradeEligibility = computeBuyEligibility(allOrders, meta.settings, identity);
+      }
 
       res.json({
-        ads: allAds,
+        ads: publicAds,
+        myPrivateAds,
+        myPrivateRequests,
         myOrders,
         myPaymentProfiles,
         spotPricesUsd,
-        escrowVaults: ESCROW_VAULTS,
+        escrowVaults: getEscrowVaultsMap(meta.settings),
+        escrowReceivingWallets: meta.settings.escrowReceivingWallets.filter((w) => w.active),
+        buyGate: {
+          minCompletedTradesToBuy: meta.settings.minCompletedTradesToBuy,
+          autoMarkPaidOnProof: meta.settings.autoMarkPaidOnProof,
+          autoReleaseEnabled: meta.settings.autoReleaseEnabled,
+          autoReleaseAfterMins: meta.settings.autoReleaseAfterMins,
+        },
+        myTradeEligibility,
+        countryLiquidity,
         stats: {
-          activeAds: allAds.filter((a) => a.status === 'active').length,
+          activeAds: publicAds.filter((a) => a.status === 'active').length,
+          privateAdsCount: allNonClosedAds.filter(
+            (a) => a.visibility === 'private' && a.status === 'active'
+          ).length,
           openOrders: allOrders.filter(
             (o) =>
               o.status === 'awaiting_escrow' ||
@@ -1058,7 +1665,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
   });
 
-  // --- 2. SAVED PAYMENT RAILS (ANY COUNTRY / METHOD) ---
+  // --- 2. SAVED PAYMENT RAILS ---
   app.post('/api/db/p2p/payment-profiles', requireAuth, async (req: P2PAuthedRequest, res) => {
     const supabase = getSupabaseAdminClient();
     if (!supabase) {
@@ -1135,7 +1742,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
   });
 
-  // --- 3. POST A P2P OFFER AD ---
+  // --- 3. POST A P2P OFFER AD (UPFRONT SELL DEPOSIT + PUBLIC/PRIVATE + BUY GATE) ---
   app.post('/api/db/p2p/ads', requireAuth, async (req: P2PAuthedRequest, res) => {
     const supabase = getSupabaseAdminClient();
     if (!supabase) {
@@ -1145,6 +1752,8 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
 
     const body = (req.body || {}) as {
       side?: P2PAdSide;
+      visibility?: P2PAdVisibility;
+      allowedUsernames?: string[];
       asset?: P2PAsset;
       countryCode?: string;
       priceType?: P2PPriceType;
@@ -1156,10 +1765,12 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
       paymentMethodIds?: string[];
       paymentWindowMins?: number;
       escrowMode?: P2PEscrowMode;
+      escrowDepositTxHash?: string;
       terms?: string;
     };
 
     const side: P2PAdSide = body.side === 'buy' ? 'buy' : 'sell';
+    const visibility: P2PAdVisibility = body.visibility === 'private' ? 'private' : 'public';
     const asset = String(body.asset || 'USDT').toUpperCase() as P2PAsset;
     if (!SUPPORTED_ASSETS.includes(asset)) {
       res.status(400).json({ error: 'Unsupported P2P crypto asset.' });
@@ -1192,7 +1803,6 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     const resolvedMethods = rawMethodIds
       .map((id) => getPaymentMethodById(String(id), country.code))
       .filter((m): m is NonNullable<typeof m> => Boolean(m));
-
     if (resolvedMethods.length === 0) {
       res.status(400).json({ error: 'Select at least 1 supported payment method.' });
       return;
@@ -1206,6 +1816,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
       const identity = await resolveBoundTraderIdentity(supabase, req.authUser!);
       if (!identity.verifiedWallet) {
         res.status(400).json({
+          code: 'WALLET_BIND_REQUIRED',
           error:
             'Your @username must have a bound wallet address before posting P2P offers. Connect or create your 1:1 wallet first.',
         });
@@ -1214,10 +1825,58 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
 
       const spotPricesUsd = await buildSpotPrices(supabase);
       const created = await withP2PLock(async () => {
-        const { state, mode } = await loadP2PState(supabase);
+        const { state, meta, mode } = await loadP2PState(supabase);
+        const allOrders = Object.values(state.orders);
+
+        // Enforce Admin Buy Minimum Trades Gate on BUY ads
+        if (side === 'buy') {
+          const elig = computeBuyEligibility(allOrders, meta.settings, identity);
+          if (!elig.canBuy) {
+            throw new Error(
+              `Buy Gate: Admin requires at least ${elig.minCompletedTradesToBuy} completed trade(s) to start buying (you have ${elig.completedTrades}). Complete a Sell trade or request Admin approval.`
+            );
+          }
+        }
+
+        const adId = makeId('p2pad');
+        let preFundedEscrow = false;
+        let escrowLockedBalance = 0;
+        let escrowDepositTxHash = '';
+
+        // SELL ADS MUST DEPOSIT COINS UPFRONT WHEN CREATING
+        if (side === 'sell') {
+          if (escrowMode === 'vault_balance') {
+            escrowDepositTxHash = await debitSellerVault(
+              supabase,
+              identity.uid,
+              identity.username,
+              asset,
+              availableCryptoAmount,
+              `P2P Upfront Sell Ad Escrow #${adId}`
+            );
+          } else {
+            const cleanTx = String(body.escrowDepositTxHash || '').trim();
+            if (!validateTxHashFormat(cleanTx)) {
+              throw new Error(
+                'Sell offers must deposit coins upfront: choose Platform Vault Deposit or paste your on-chain TX hash transferring coins to the Escrow Receiving Wallet.'
+              );
+            }
+            escrowDepositTxHash = cleanTx;
+          }
+          preFundedEscrow = true;
+          escrowLockedBalance = Number(availableCryptoAmount.toFixed(6));
+        }
+
         const now = Date.now();
+        const allowedUsernames = Array.isArray(body.allowedUsernames)
+          ? body.allowedUsernames
+              .map((u) => String(u).trim().replace(/^@/, '').toLowerCase())
+              .filter(Boolean)
+              .slice(0, 20)
+          : [];
+
         const ad: P2PAd = {
-          id: makeId('p2pad'),
+          id: adId,
           makerUid: identity.uid,
           makerUsername: identity.username,
           makerDisplayName: identity.displayName,
@@ -1226,6 +1885,9 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
           makerSolanaAddress: identity.solanaAddress,
           makerCscAddress: identity.cscAddress,
           side,
+          visibility,
+          privateCode: visibility === 'private' ? makePrivateCode() : undefined,
+          allowedUsernames,
           asset,
           countryCode: country.code,
           fiatCurrency: country.currency,
@@ -1235,6 +1897,10 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
           effectivePriceFiat: fixedPriceFiat,
           spotPriceUsd: spotPricesUsd[asset] || 1,
           availableCryptoAmount: Number(availableCryptoAmount.toFixed(6)),
+          preFundedEscrow,
+          escrowLockedBalance,
+          escrowDepositMode: side === 'sell' ? escrowMode : undefined,
+          escrowDepositTxHash: escrowDepositTxHash || undefined,
           minFiatOrder: Number(minFiatOrder.toFixed(2)),
           maxFiatOrder: Number(maxFiatOrder.toFixed(2)),
           paymentMethodIds: resolvedMethods.map((m) => m.id),
@@ -1253,8 +1919,8 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
           updatedAt: now,
         };
 
-        await persistAd(supabase, state, mode, ad);
-        return enrichAd(ad, Object.values(state.orders), spotPricesUsd);
+        await persistAd(supabase, state, meta, mode, ad);
+        return enrichAd(ad, allOrders, spotPricesUsd);
       });
 
       res.json({ ad: created });
@@ -1277,16 +1943,41 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
     try {
       const updated = await withP2PLock(async () => {
-        const { state, mode } = await loadP2PState(supabase);
+        const { state, meta, mode } = await loadP2PState(supabase);
         const ad = state.ads[id];
         if (!ad) throw new Error('Offer not found.');
         const admin = await isUserAdmin(supabase, req.authUser!);
         if (ad.makerUid !== req.authUser!.uid && !admin) {
           throw new Error('Only the ad owner or KingAdmin can modify this offer.');
         }
+
+        // Refund remaining pre-funded vault balance when closing a Sell Ad
+        if (
+          status === 'closed' &&
+          ad.side === 'sell' &&
+          ad.preFundedEscrow &&
+          ad.escrowLockedBalance > 0
+        ) {
+          await creditVault(
+            supabase,
+            ad.escrowDepositMode || ad.escrowMode,
+            ad.asset,
+            ad.makerUid,
+            ad.makerUsername,
+            ad.escrowLockedBalance,
+            `P2P Close Sell Ad Refund #${ad.id}`
+          );
+          ad.escrowLockedBalance = 0;
+          ad.availableCryptoAmount = 0;
+        }
+
+        if (status === 'active' && ad.side === 'sell' && ad.availableCryptoAmount <= 0) {
+          throw new Error('Cannot reactivate a closed/depleted pre-funded Sell offer.');
+        }
+
         ad.status = status as P2PAd['status'];
         ad.updatedAt = Date.now();
-        await persistAd(supabase, state, mode, ad);
+        await persistAd(supabase, state, meta, mode, ad);
         return ad;
       });
       res.json({ ad: updated });
@@ -1295,7 +1986,223 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
   });
 
-  // --- 4. OPEN TRADE ORDER FROM AD ---
+  // --- 4. PRIVATE AD LOOKUP & USERNAME REQUEST FLOW ---
+  app.get('/api/db/p2p/private-lookup', requireAuth, async (req: P2PAuthedRequest, res) => {
+    const supabase = getSupabaseAdminClient();
+    if (!supabase) {
+      res.status(503).json({ error: 'Supabase not configured.' });
+      return;
+    }
+    const query = String(req.query.query || '').trim().replace(/^@/, '').toLowerCase();
+    if (query.length < 3) {
+      res.status(400).json({ error: 'Enter a Private Ad Code (e.g. PRIV-...) or maker @username.' });
+      return;
+    }
+
+    try {
+      const [identity, spotPricesUsd, loaded] = await Promise.all([
+        resolveBoundTraderIdentity(supabase, req.authUser!),
+        buildSpotPrices(supabase),
+        loadP2PState(supabase),
+      ]);
+      const allOrders = Object.values(loaded.state.orders);
+
+      const matches = Object.values(loaded.state.ads)
+        .filter((ad) => ad.visibility === 'private' && ad.status === 'active')
+        .filter((ad) => {
+          const codeMatch = (ad.privateCode || '').toLowerCase() === query;
+          const makerMatch = ad.makerUsername.toLowerCase() === query;
+          if (!codeMatch && !makerMatch) return false;
+          if (ad.allowedUsernames && ad.allowedUsernames.length > 0 && ad.makerUid !== identity.uid) {
+            return ad.allowedUsernames.includes(identity.username.toLowerCase()) || codeMatch;
+          }
+          return true;
+        })
+        .map((ad) => enrichAd(ad, allOrders, spotPricesUsd));
+
+      res.json({ ads: matches });
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Private lookup failed' });
+    }
+  });
+
+  app.post('/api/db/p2p/private-requests', requireAuth, async (req: P2PAuthedRequest, res) => {
+    const supabase = getSupabaseAdminClient();
+    if (!supabase) {
+      res.status(503).json({ error: 'Supabase not configured.' });
+      return;
+    }
+    const body = (req.body || {}) as {
+      adId?: string;
+      fiatAmount?: number;
+      paymentMethodId?: string;
+      note?: string;
+    };
+
+    try {
+      const identity = await resolveBoundTraderIdentity(supabase, req.authUser!);
+      if (!identity.verifiedWallet) {
+        res.status(400).json({
+          code: 'WALLET_BIND_REQUIRED',
+          error:
+            'Your @username must have a bound wallet address before requesting private P2P trades.',
+        });
+        return;
+      }
+
+      const spotPricesUsd = await buildSpotPrices(supabase);
+      const reqRecord = await withP2PLock(async () => {
+        const { state, meta } = await loadP2PState(supabase);
+        const rawAd = state.ads[String(body.adId || '')];
+        if (!rawAd || rawAd.status !== 'active' || rawAd.visibility !== 'private') {
+          throw new Error('Private P2P offer not found or no longer active.');
+        }
+        if (rawAd.makerUid === identity.uid) {
+          throw new Error('You cannot request your own private offer.');
+        }
+
+        const allOrders = Object.values(state.orders);
+        if (rawAd.side === 'sell') {
+          const elig = computeBuyEligibility(allOrders, meta.settings, identity);
+          if (!elig.canBuy) {
+            throw new Error(
+              `Buy Gate: Admin requires at least ${elig.minCompletedTradesToBuy} completed trade(s) to start buying (you have ${elig.completedTrades}).`
+            );
+          }
+        }
+
+        const ad = enrichAd(rawAd, allOrders, spotPricesUsd);
+        const fiatAmount = Number(body.fiatAmount ?? 0);
+        if (!Number.isFinite(fiatAmount) || fiatAmount < ad.minFiatOrder || fiatAmount > ad.maxFiatOrder) {
+          throw new Error(
+            `Requested amount must be between ${ad.minFiatOrder} and ${ad.maxFiatOrder} ${ad.fiatCurrency}.`
+          );
+        }
+        const cryptoAmount = Number((fiatAmount / Math.max(0.000001, ad.effectivePriceFiat)).toFixed(6));
+        if (cryptoAmount <= 0 || cryptoAmount > ad.availableCryptoAmount + 1e-6) {
+          throw new Error(`Requested ${cryptoAmount} ${ad.asset} exceeds offer availability.`);
+        }
+
+        const chosenMethodId =
+          ad.paymentMethodIds.find((m) => m === body.paymentMethodId) || ad.paymentMethodIds[0];
+        const chosenMethodName =
+          getPaymentMethodById(chosenMethodId, ad.countryCode)?.name ||
+          ad.paymentMethodNames[0] ||
+          chosenMethodId;
+
+        const now = Date.now();
+        const item: P2PPrivateRequest = {
+          id: makeId('p2preq'),
+          adId: ad.id,
+          adPrivateCode: ad.privateCode || '',
+          adSide: ad.side,
+          makerUid: ad.makerUid,
+          makerUsername: ad.makerUsername,
+          requesterUid: identity.uid,
+          requesterUsername: identity.username,
+          requesterWalletAddress: identity.primaryWallet,
+          requesterCompletedTrades: computeCompletedTradesForUid(allOrders, identity.uid),
+          asset: ad.asset,
+          countryCode: ad.countryCode,
+          fiatCurrency: ad.fiatCurrency,
+          unitPriceFiat: ad.effectivePriceFiat,
+          requestedFiatAmount: Number(fiatAmount.toFixed(2)),
+          requestedCryptoAmount: cryptoAmount,
+          paymentMethodId: chosenMethodId,
+          paymentMethodName: chosenMethodName,
+          note: String(body.note || '').trim().slice(0, 280),
+          status: 'pending',
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        meta.privateRequests[item.id] = item;
+        await saveP2PMeta(supabase, meta);
+        return item;
+      });
+
+      res.json({ request: reqRecord });
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Request failed' });
+    }
+  });
+
+  app.post(
+    '/api/db/p2p/private-requests/:id/respond',
+    requireAuth,
+    async (req: P2PAuthedRequest, res) => {
+      const supabase = getSupabaseAdminClient();
+      if (!supabase) {
+        res.status(503).json({ error: 'Supabase not configured.' });
+        return;
+      }
+      const id = String(req.params.id || '');
+      const decision = String((req.body as { decision?: string } | undefined)?.decision || '');
+      if (decision !== 'approve' && decision !== 'decline') {
+        res.status(400).json({ error: 'Decision must be approve or decline.' });
+        return;
+      }
+
+      try {
+        const spotPricesUsd = await buildSpotPrices(supabase);
+        const result = await withP2PLock(async () => {
+          const { state, meta, mode } = await loadP2PState(supabase);
+          const item = meta.privateRequests[id];
+          if (!item || item.makerUid !== req.authUser!.uid) {
+            throw new Error('Private request not found.');
+          }
+          if (item.status !== 'pending') {
+            throw new Error(`Request is already ${item.status}.`);
+          }
+
+          if (decision === 'decline') {
+            item.status = 'declined';
+            item.updatedAt = Date.now();
+            meta.privateRequests[item.id] = item;
+            await saveP2PMeta(supabase, meta);
+            return { request: item, order: null };
+          }
+
+          const rawAd = state.ads[item.adId];
+          if (!rawAd || rawAd.status !== 'active') {
+            throw new Error('Underlying private offer is no longer active.');
+          }
+          const ad = enrichAd(rawAd, Object.values(state.orders), spotPricesUsd);
+          const order = await createOrderFromAdInternal(supabase, state, meta, mode, {
+            ad,
+            rawAd,
+            takerIdentity: {
+              uid: item.requesterUid,
+              username: item.requesterUsername,
+              displayName: item.requesterUsername,
+              evmAddress: item.requesterWalletAddress,
+              solanaAddress: '',
+              cscAddress: '',
+              primaryWallet: item.requesterWalletAddress,
+              verifiedWallet: true,
+            },
+            fiatAmount: item.requestedFiatAmount,
+            paymentMethodId: item.paymentMethodId,
+            isPrivateOrder: true,
+          });
+
+          item.status = 'converted';
+          item.orderId = order.id;
+          item.updatedAt = Date.now();
+          meta.privateRequests[item.id] = item;
+          await saveP2PMeta(supabase, meta);
+
+          return { request: item, order };
+        });
+
+        res.json(result);
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to respond' });
+      }
+    }
+  );
+
+  // --- 5. OPEN PUBLIC TRADE ORDER FROM AD ---
   app.post('/api/db/p2p/orders', requireAuth, async (req: P2PAuthedRequest, res) => {
     const supabase = getSupabaseAdminClient();
     if (!supabase) {
@@ -1312,14 +2219,18 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
         accountDetails?: string;
         instructions?: string;
       };
+      sellEscrowMode?: P2PEscrowMode;
+      sellEscrowTxHash?: string;
+      sellEscrowSignature?: string;
     };
 
     try {
       const takerIdentity = await resolveBoundTraderIdentity(supabase, req.authUser!);
       if (!takerIdentity.verifiedWallet) {
         res.status(400).json({
+          code: 'WALLET_BIND_REQUIRED',
           error:
-            'Your @username must have a bound wallet address to trade on Decentralized P2P.',
+            'Your @username must have a bound wallet address before trading on Decentralized P2P. Connect or create your 1:1 wallet first.',
         });
         return;
       }
@@ -1327,133 +2238,43 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
       const spotPricesUsd = await buildSpotPrices(supabase);
 
       const order = await withP2PLock(async () => {
-        const { state, mode } = await loadP2PState(supabase);
+        const { state, meta, mode } = await loadP2PState(supabase);
         const rawAd = state.ads[String(body.adId || '')];
         if (!rawAd || rawAd.status !== 'active') {
           throw new Error('This P2P offer is no longer active.');
+        }
+        if (rawAd.visibility === 'private') {
+          throw new Error('Private P2P offers require submitting a Private Request first.');
         }
         if (rawAd.makerUid === takerIdentity.uid) {
           throw new Error('You cannot trade against your own P2P offer.');
         }
 
-        const ad = enrichAd(rawAd, Object.values(state.orders), spotPricesUsd);
-        const fiatAmount = Number(body.fiatAmount ?? 0);
-        if (!Number.isFinite(fiatAmount) || fiatAmount < ad.minFiatOrder || fiatAmount > ad.maxFiatOrder) {
-          throw new Error(
-            `Order amount must be between ${ad.minFiatOrder} and ${ad.maxFiatOrder} ${ad.fiatCurrency}.`
-          );
+        const allOrders = Object.values(state.orders);
+        if (rawAd.side === 'sell') {
+          const elig = computeBuyEligibility(allOrders, meta.settings, takerIdentity);
+          if (!elig.canBuy) {
+            throw new Error(
+              `Buy Gate: Admin requires at least ${elig.minCompletedTradesToBuy} completed trade(s) to start buying (you have ${elig.completedTrades}). Complete a Sell trade or request Admin approval.`
+            );
+          }
         }
 
-        const cryptoAmount = Number((fiatAmount / Math.max(0.000001, ad.effectivePriceFiat)).toFixed(6));
-        if (cryptoAmount <= 0 || cryptoAmount > ad.availableCryptoAmount + 1e-6) {
-          throw new Error(
-            `Requested ${cryptoAmount} ${ad.asset} exceeds ad availability (${ad.availableCryptoAmount} ${ad.asset}).`
-          );
-        }
-
-        const chosenMethodId =
-          ad.paymentMethodIds.find((m) => m === body.paymentMethodId) || ad.paymentMethodIds[0];
-        const chosenMethodName =
-          getPaymentMethodById(chosenMethodId, ad.countryCode)?.name ||
-          ad.paymentMethodNames[0] ||
-          chosenMethodId;
-
-        // If ad.side === 'sell', maker is selling crypto (maker = seller, taker = buyer).
-        // If ad.side === 'buy', maker is buying crypto (maker = buyer, taker = seller).
-        const sellerUid = ad.side === 'sell' ? ad.makerUid : takerIdentity.uid;
-        const sellerUsername = ad.side === 'sell' ? ad.makerUsername : takerIdentity.username;
-        const sellerWalletAddress =
-          ad.side === 'sell' ? ad.makerWalletAddress : takerIdentity.primaryWallet;
-
-        const buyerUid = ad.side === 'sell' ? takerIdentity.uid : ad.makerUid;
-        const buyerUsername = ad.side === 'sell' ? takerIdentity.username : ad.makerUsername;
-        const buyerWalletAddress =
-          ad.side === 'sell' ? takerIdentity.primaryWallet : ad.makerWalletAddress;
-
-        const sellerSavedProfile = Object.values(state.paymentProfiles).find(
-          (p) => p.ownerUid === sellerUid && p.methodId === chosenMethodId
-        );
-
-        const paymentSnapshot = {
-          accountHolder:
-            String(body.sellerPaymentDetails?.accountHolder || '').trim() ||
-            sellerSavedProfile?.accountHolder ||
-            `@${sellerUsername}`,
-          accountDetails:
-            String(body.sellerPaymentDetails?.accountDetails || '').trim() ||
-            sellerSavedProfile?.accountDetails ||
-            'Share receiving details in trade chat before sending fiat.',
-          instructions:
-            String(body.sellerPaymentDetails?.instructions || '').trim() ||
-            sellerSavedProfile?.instructions ||
-            ad.terms ||
-            'Include the Order ID in payment notes only if required; avoid crypto keywords.',
-        };
-
-        const feeCrypto = Number((cryptoAmount * P2P_ESCROW_FEE_RATE).toFixed(6));
-        const netBuyerCrypto = Number(Math.max(0, cryptoAmount - feeCrypto).toFixed(6));
-        const now = Date.now();
-
-        const createdOrder: P2POrder = {
-          id: makeId('p2po'),
-          adId: ad.id,
-          asset: ad.asset,
-          countryCode: ad.countryCode,
-          fiatCurrency: ad.fiatCurrency,
-          unitPriceFiat: ad.effectivePriceFiat,
-          cryptoAmount,
-          fiatAmount: Number(fiatAmount.toFixed(2)),
-          feeCrypto,
-          netBuyerCrypto,
-          buyerUid,
-          buyerUsername,
-          buyerWalletAddress,
-          sellerUid,
-          sellerUsername,
-          sellerWalletAddress,
-          paymentMethodId: chosenMethodId,
-          paymentMethodName: chosenMethodName,
-          paymentSnapshot,
-          escrowMode: ad.escrowMode,
-          escrowAssetLocked: false,
-          escrowLockedAmount: 0,
-          escrowTxHash: '',
-          escrowSignature: '',
-          escrowVaultAddress: getVaultAddressForAsset(ad.asset),
-          fiatProofRef: '',
-          fiatProofImage: '',
-          fiatProofNote: '',
-          status: 'awaiting_escrow',
-          disputeReason: '',
-          disputedByUid: '',
-          adminResolutionNote: '',
-          resolvedByUid: '',
-          resolvedByHandle: '',
-          paymentDeadlineAt: now + ad.paymentWindowMins * 60_000,
-          createdAt: now,
-          updatedAt: now,
-        };
-
-        // Reserve liquidity from ad
-        rawAd.availableCryptoAmount = Number(
-          Math.max(0, rawAd.availableCryptoAmount - cryptoAmount).toFixed(6)
-        );
-        if (rawAd.availableCryptoAmount <= 0.000001) {
-          rawAd.status = 'paused';
-        }
-        rawAd.updatedAt = now;
-
-        await persistAd(supabase, state, mode, rawAd);
-        await persistOrder(supabase, state, mode, createdOrder);
-        await appendSystemMessageAndBroadcast(
-          supabase,
-          state,
-          mode,
-          createdOrder,
-          `Trade opened between Buyer @${buyerUsername} and Seller @${sellerUsername} for ${cryptoAmount} ${ad.asset} (${createdOrder.fiatAmount} ${createdOrder.fiatCurrency} via ${chosenMethodName}). Step 1: Seller locks ${cryptoAmount} ${ad.asset} into Escrow before Buyer sends fiat.`
-        );
-
-        return createdOrder;
+        const ad = enrichAd(rawAd, allOrders, spotPricesUsd);
+        return createOrderFromAdInternal(supabase, state, meta, mode, {
+          ad,
+          rawAd,
+          takerIdentity,
+          fiatAmount: Number(body.fiatAmount ?? 0),
+          paymentMethodId: String(body.paymentMethodId || ''),
+          isPrivateOrder: false,
+          sellerPaymentDetails: body.sellerPaymentDetails,
+          takerSellEscrow: {
+            mode: body.sellEscrowMode,
+            txHash: body.sellEscrowTxHash,
+            signature: body.sellEscrowSignature,
+          },
+        });
       });
 
       res.json({ order });
@@ -1462,7 +2283,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
   });
 
-  // --- 5. FETCH SINGLE ORDER & CHAT MESSAGES ---
+  // --- 6. FETCH SINGLE ORDER & CHAT MESSAGES ---
   app.get('/api/db/p2p/orders/:id', requireAuth, async (req: P2PAuthedRequest, res) => {
     const supabase = getSupabaseAdminClient();
     if (!supabase) {
@@ -1494,7 +2315,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
   });
 
-  // --- 6. SELLER LOCKS CRYPTO IN ESCROW (VAULT OR ON-CHAIN PROOF) ---
+  // --- 7. SELLER LOCKS CRYPTO IN ESCROW (FOR LEGACY/AWAITING ORDERS) ---
   app.post('/api/db/p2p/orders/:id/lock-escrow', requireAuth, async (req: P2PAuthedRequest, res) => {
     const supabase = getSupabaseAdminClient();
     if (!supabase) {
@@ -1548,59 +2369,23 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
         let signature = '';
 
         if (chosenMode === 'vault_balance') {
-          if (ord.asset === 'SOL') {
-            const { data: userRow, error: userErr } = await supabase
-              .from('chainscope_users')
-              .select('sol_balance')
-              .eq('uid', ord.sellerUid)
-              .maybeSingle();
-            if (userErr) throw new Error(userErr.message);
-            const curSol = Number(userRow?.sol_balance ?? 0);
-            if (curSol + 1e-9 < ord.cryptoAmount) {
-              throw new Error(
-                `Insufficient SOL vault balance (${curSol.toFixed(4)} SOL available). Switch to On-Chain Wallet TX Escrow or deposit coins.`
-              );
-            }
-            const nextSol = Number((curSol - ord.cryptoAmount).toFixed(6));
-            const { error: updErr } = await supabase
-              .from('chainscope_users')
-              .update({ sol_balance: nextSol, updated_at: new Date().toISOString() })
-              .eq('uid', ord.sellerUid);
-            if (updErr) throw new Error(updErr.message);
-            txHash = `vault_sol_${crypto.randomBytes(12).toString('hex')}`;
-          } else {
-            const op = await executeCscVaultEscrowOp(supabase, {
-              action: 'debit',
-              uid: ord.sellerUid,
-              handle: ord.sellerUsername,
-              asset: ord.asset as 'CSC' | 'USDT' | 'USD1',
-              amount: ord.cryptoAmount,
-              note: `P2P Escrow Lock #${ord.id} for @${ord.buyerUsername}`,
-            });
-            txHash = op.txHash;
-          }
+          txHash = await debitSellerVault(
+            supabase,
+            ord.sellerUid,
+            ord.sellerUsername,
+            ord.asset,
+            ord.cryptoAmount,
+            `P2P Escrow Lock #${ord.id} for @${ord.buyerUsername}`
+          );
         } else {
           const cleanHash = String(body.txHash || '').trim();
-          if (cleanHash.length < 24 || !/^(0x[a-fA-F0-9]{20,}|[1-9A-HJ-NP-Za-km-z]{32,120})$/.test(cleanHash)) {
+          if (!validateTxHashFormat(cleanHash)) {
             throw new Error(
-              'Provide a valid on-chain transaction hash (0x... or Solana TX signature) transferring coins to the Escrow Vault.'
+              'Provide a valid on-chain transaction hash (0x... or Solana TX signature) transferring coins to the Escrow Receiving Wallet.'
             );
           }
           txHash = cleanHash;
           signature = String(body.signature || '').trim().slice(0, 260);
-          if (signature && ethers.isAddress(ord.sellerWalletAddress)) {
-            try {
-              const expectedMsg = `ChainScope P2P Escrow Lock\nOrder: ${ord.id}\nAmount: ${ord.cryptoAmount} ${ord.asset}\nTX: ${txHash}`;
-              const recovered = ethers.verifyMessage(expectedMsg, signature);
-              if (recovered.toLowerCase() !== ord.sellerWalletAddress.toLowerCase()) {
-                throw new Error('Wallet signature does not match Seller bound 1:1 wallet.');
-              }
-            } catch (sigErr) {
-              if (sigErr instanceof Error && sigErr.message.includes('1:1 wallet')) {
-                throw sigErr;
-              }
-            }
-          }
         }
 
         const now = Date.now();
@@ -1620,7 +2405,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
           state,
           mode,
           ord,
-          `Seller @${ord.sellerUsername} locked ${ord.cryptoAmount} ${ord.asset} into ChainScope Escrow (${chosenMode === 'vault_balance' ? 'Atomic Vault Lock' : 'On-Chain Wallet TX'}). Buyer @${ord.buyerUsername} may now send ${ord.fiatAmount} ${ord.fiatCurrency} and upload receipt proof.`,
+          `Seller @${ord.sellerUsername} locked ${ord.cryptoAmount} ${ord.asset} into ChainScope Escrow. Buyer @${ord.buyerUsername} may now send ${ord.fiatAmount} ${ord.fiatCurrency} and upload receipt proof.`,
           { kind: 'escrow_proof', txHash }
         );
         return ord;
@@ -1632,7 +2417,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
   });
 
-  // --- 7. BUYER SUBMITS FIAT PAYMENT PROOF ---
+  // --- 8. BUYER SUBMITS FIAT PAYMENT PROOF ---
   app.post('/api/db/p2p/orders/:id/mark-paid', requireAuth, async (req: P2PAuthedRequest, res) => {
     const supabase = getSupabaseAdminClient();
     if (!supabase) {
@@ -1656,7 +2441,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     try {
       const img = body.fiatProofImage ? validateProofImageDataUrl(body.fiatProofImage) : '';
       const order = await withP2PLock(async () => {
-        const { state, mode } = await loadP2PState(supabase);
+        const { state, meta, mode } = await loadP2PState(supabase);
         const ord = state.orders[id];
         if (!ord) throw new Error('Order not found.');
         if (ord.buyerUid !== req.authUser!.uid) {
@@ -1675,12 +2460,15 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
         ord.updatedAt = now;
 
         await persistOrder(supabase, state, mode, ord);
+        const autoNote = meta.settings.autoReleaseEnabled
+          ? ` Auto-release triggers in ${meta.settings.autoReleaseAfterMins}m unless disputed.`
+          : '';
         await appendSystemMessageAndBroadcast(
           supabase,
           state,
           mode,
           ord,
-          `Buyer @${ord.buyerUsername} submitted fiat payment proof${ref ? ` (Ref: ${ref})` : ''}. Cancellation is now locked. Seller @${ord.sellerUsername}: verify funds received and release Escrow.`,
+          `Buyer @${ord.buyerUsername} submitted fiat payment proof${ref ? ` (Ref: ${ref})` : ''}. Cancellation is now locked.${autoNote}`,
           { kind: 'payment_proof', attachmentImage: img || undefined }
         );
         return ord;
@@ -1691,41 +2479,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
   });
 
-  // --- HELPER: SETTLE ESCROW FUNDS TO BUYER OR SELLER ---
-  async function settleEscrowCredit(
-    supabase: SupabaseClient,
-    ord: P2POrder,
-    recipientUid: string,
-    recipientHandle: string,
-    grossOrNetAmount: number,
-    note: string
-  ) {
-    if (ord.escrowMode === 'vault_balance') {
-      if (ord.asset === 'SOL') {
-        const { data: userRow } = await supabase
-          .from('chainscope_users')
-          .select('sol_balance')
-          .eq('uid', recipientUid)
-          .maybeSingle();
-        const nextSol = Number((Number(userRow?.sol_balance ?? 0) + grossOrNetAmount).toFixed(6));
-        await supabase
-          .from('chainscope_users')
-          .update({ sol_balance: nextSol, updated_at: new Date().toISOString() })
-          .eq('uid', recipientUid);
-      } else {
-        await executeCscVaultEscrowOp(supabase, {
-          action: 'credit',
-          uid: recipientUid,
-          handle: recipientHandle,
-          asset: ord.asset as 'CSC' | 'USDT' | 'USD1',
-          amount: grossOrNetAmount,
-          note,
-        });
-      }
-    }
-  }
-
-  // --- 8. SELLER RELEASES ESCROW TO BUYER ---
+  // --- 9. SELLER RELEASES ESCROW TO BUYER ---
   app.post('/api/db/p2p/orders/:id/release', requireAuth, async (req: P2PAuthedRequest, res) => {
     const supabase = getSupabaseAdminClient();
     if (!supabase) {
@@ -1745,9 +2499,10 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
           throw new Error(`Cannot release escrow from state "${ord.status}".`);
         }
 
-        await settleEscrowCredit(
+        await creditVault(
           supabase,
-          ord,
+          ord.escrowMode,
+          ord.asset,
           ord.buyerUid,
           ord.buyerUsername,
           ord.netBuyerCrypto,
@@ -1775,7 +2530,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
   });
 
-  // --- 9. CANCEL ORDER (ONLY BEFORE FIAT_PAID, REFUNDS SELLER ESCROW IF LOCKED) ---
+  // --- 10. CANCEL ORDER (RETURNS ESCROW BACK TO PRE-FUNDED AD OR SELLER) ---
   app.post('/api/db/p2p/orders/:id/cancel', requireAuth, async (req: P2PAuthedRequest, res) => {
     const supabase = getSupabaseAdminClient();
     if (!supabase) {
@@ -1785,14 +2540,16 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     const id = String(req.params.id || '');
     try {
       const order = await withP2PLock(async () => {
-        const { state, mode } = await loadP2PState(supabase);
+        const { state, meta, mode } = await loadP2PState(supabase);
         const ord = state.orders[id];
         if (!ord) throw new Error('Order not found.');
         if (ord.buyerUid !== req.authUser!.uid && ord.sellerUid !== req.authUser!.uid) {
           throw new Error('Unauthorized.');
         }
         if (ord.status === 'fiat_paid' || ord.status === 'disputed') {
-          throw new Error('Cannot cancel after fiat proof is submitted. Open or resolve via KingAdmin moderation.');
+          throw new Error(
+            'Cannot cancel after fiat proof is submitted. Escalate to KingAdmin moderation.'
+          );
         }
         if (ord.status !== 'awaiting_escrow' && ord.status !== 'escrow_locked') {
           throw new Error(`Cannot cancel order in state "${ord.status}".`);
@@ -1802,29 +2559,42 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
           throw new Error('Once escrow is locked, only the Buyer may cancel (or open a Dispute).');
         }
 
-        if (ord.escrowAssetLocked && ord.escrowLockedAmount > 0) {
-          await settleEscrowCredit(
+        const ad = state.ads[ord.adId];
+        if (ad) {
+          ad.availableCryptoAmount = Number((ad.availableCryptoAmount + ord.cryptoAmount).toFixed(6));
+          if (ad.side === 'sell' && ad.preFundedEscrow && ord.escrowAssetLocked) {
+            ad.escrowLockedBalance = Number(
+              (ad.escrowLockedBalance + ord.escrowLockedAmount).toFixed(6)
+            );
+          } else if (ord.escrowAssetLocked && ord.escrowLockedAmount > 0) {
+            await creditVault(
+              supabase,
+              ord.escrowMode,
+              ord.asset,
+              ord.sellerUid,
+              ord.sellerUsername,
+              ord.escrowLockedAmount,
+              `P2P Cancel Escrow Refund #${ord.id}`
+            );
+          }
+          if (ad.status === 'paused' && ad.availableCryptoAmount > 0) {
+            ad.status = 'active';
+          }
+          ad.updatedAt = Date.now();
+          await persistAd(supabase, state, meta, mode, ad);
+        } else if (ord.escrowAssetLocked && ord.escrowLockedAmount > 0) {
+          await creditVault(
             supabase,
-            ord,
+            ord.escrowMode,
+            ord.asset,
             ord.sellerUid,
             ord.sellerUsername,
             ord.escrowLockedAmount,
             `P2P Cancel Escrow Refund #${ord.id}`
           );
-          ord.escrowAssetLocked = false;
         }
 
-        // Restore ad liquidity
-        const ad = state.ads[ord.adId];
-        if (ad) {
-          ad.availableCryptoAmount = Number((ad.availableCryptoAmount + ord.cryptoAmount).toFixed(6));
-          if (ad.status === 'paused' && ad.availableCryptoAmount > 0) {
-            ad.status = 'active';
-          }
-          ad.updatedAt = Date.now();
-          await persistAd(supabase, state, mode, ad);
-        }
-
+        ord.escrowAssetLocked = false;
         const now = Date.now();
         ord.status = 'cancelled';
         ord.completedAt = now;
@@ -1836,7 +2606,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
           state,
           mode,
           ord,
-          `Order cancelled. ${ord.escrowLockedAmount > 0 ? 'Locked escrow refunded to Seller.' : 'Ad liquidity restored.'}`
+          `Order cancelled. Escrowed liquidity returned safely.`
         );
         return ord;
       });
@@ -1846,7 +2616,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
   });
 
-  // --- 10. ESCALATE DISPUTE TO KINGADMIN ---
+  // --- 11. ESCALATE DISPUTE TO KINGADMIN ---
   app.post('/api/db/p2p/orders/:id/dispute', requireAuth, async (req: P2PAuthedRequest, res) => {
     const supabase = getSupabaseAdminClient();
     if (!supabase) {
@@ -1883,7 +2653,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
           state,
           mode,
           ord,
-          `DISPUTE ESCALATED to KingAdmin Moderation. Escrow is frozen until Admin reviews chat & payment proof. Reason: "${reason}"`
+          `DISPUTE ESCALATED to KingAdmin Moderation. Escrow is frozen until Admin reviews proof. Reason: "${reason}"`
         );
         return ord;
       });
@@ -1893,7 +2663,7 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
   });
 
-  // --- 11. REST FALLBACK FOR CHAT MESSAGES ---
+  // --- 12. REST FALLBACK FOR CHAT MESSAGES ---
   app.post('/api/db/p2p/orders/:id/messages', requireAuth, async (req: P2PAuthedRequest, res) => {
     const supabase = getSupabaseAdminClient();
     if (!supabase) {
@@ -1961,22 +2731,264 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
     }
   });
 
-  // --- 12. KINGADMIN P2P MODERATION QUEUE & ESCROW RESOLUTION ---
+  // --- 13. KINGADMIN P2P MODERATION, SETTINGS, ESCROW RECEIVING WALLETS & AUTOMATION ---
   app.get('/api/db/admin/p2p/orders', requireAuth, requireAdmin, async (_req, res) => {
     const supabase = getSupabaseAdminClient()!;
     try {
-      const { state } = await loadP2PState(supabase);
+      await runP2PAutomationSweep(supabase).catch(() => {});
+      const { state, meta } = await loadP2PState(supabase);
       const orders = Object.values(state.orders).sort((a, b) => {
         if (a.status === 'disputed' && b.status !== 'disputed') return -1;
         if (b.status === 'disputed' && a.status !== 'disputed') return 1;
         return b.updatedAt - a.updatedAt;
       });
-      res.json({ orders, messagesByOrder: state.messages });
+      res.json({ orders, messagesByOrder: state.messages, settings: meta.settings });
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to load admin P2P queue' });
     }
   });
 
+  app.post('/api/db/admin/p2p/settings', requireAuth, requireAdmin, async (req: P2PAuthedRequest, res) => {
+    const supabase = getSupabaseAdminClient()!;
+    const rawBody = (req.body || {}) as Record<string, unknown>;
+
+    // Enforce Cold Wallets = Public Keys ONLY (reject any private key payload)
+    if (
+      'privateKey' in rawBody ||
+      'mnemonic' in rawBody ||
+      'secretKey' in rawBody
+    ) {
+      res.status(400).json({ error: 'Private keys are strictly forbidden on Admin Escrow settings.' });
+      return;
+    }
+
+    const body = rawBody as Partial<P2PAdminSettings>;
+
+    try {
+      const adminIdentity = await resolveBoundTraderIdentity(supabase, req.authUser!);
+      const updatedSettings = await withP2PLock(async () => {
+        const { meta } = await loadP2PState(supabase);
+        const nextWallets: P2PEscrowReceivingWallet[] = [];
+
+        if (Array.isArray(body.escrowReceivingWallets)) {
+          for (const w of body.escrowReceivingWallets) {
+            const rawRec = w as unknown as Record<string, unknown>;
+            if ('privateKey' in rawRec || 'mnemonic' in rawRec || 'secretKey' in rawRec) {
+              throw new Error('Cold/Escrow receiving wallets may only contain public keys.');
+            }
+            const chain =
+              w.chain === 'solana' || w.chain === 'csc' ? w.chain : 'evm';
+            const addr = String(w.publicAddress || '').trim();
+            if (chain === 'evm' && !ethers.isAddress(addr)) {
+              throw new Error(`Invalid EVM public address "${addr}".`);
+            }
+            if (chain === 'solana' && !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr)) {
+              throw new Error(`Invalid Solana public address "${addr}".`);
+            }
+            if (chain === 'csc' && addr.length < 6) {
+              throw new Error(`Invalid CSC public address "${addr}".`);
+            }
+            nextWallets.push({
+              id: String(w.id || makeId('escw')),
+              label: String(w.label || 'Escrow Receiving Wallet').trim().slice(0, 64),
+              chain,
+              walletType: w.walletType === 'hot_escrow' ? 'hot_escrow' : 'cold_public',
+              publicAddress: chain === 'evm' ? ethers.getAddress(addr) : addr,
+              active: Boolean(w.active),
+              createdAt: Number(w.createdAt || Date.now()),
+            });
+          }
+        }
+
+        const next: P2PAdminSettings = {
+          minCompletedTradesToBuy: Math.max(
+            0,
+            Math.min(
+              100,
+              Math.round(
+                Number(
+                  body.minCompletedTradesToBuy ?? meta.settings.minCompletedTradesToBuy
+                )
+              )
+            )
+          ),
+          whitelistedBuyerUsernames: Array.isArray(body.whitelistedBuyerUsernames)
+            ? body.whitelistedBuyerUsernames
+                .map((x) => String(x).trim().replace(/^@/, '').toLowerCase())
+                .filter(Boolean)
+            : meta.settings.whitelistedBuyerUsernames,
+          autoMarkPaidOnProof:
+            typeof body.autoMarkPaidOnProof === 'boolean'
+              ? body.autoMarkPaidOnProof
+              : meta.settings.autoMarkPaidOnProof,
+          autoReleaseEnabled:
+            typeof body.autoReleaseEnabled === 'boolean'
+              ? body.autoReleaseEnabled
+              : meta.settings.autoReleaseEnabled,
+          autoReleaseAfterMins: Math.max(
+            1,
+            Math.min(
+              1440,
+              Math.round(
+                Number(body.autoReleaseAfterMins ?? meta.settings.autoReleaseAfterMins)
+              )
+            )
+          ),
+          escrowReceivingWallets:
+            nextWallets.length > 0 ? nextWallets : meta.settings.escrowReceivingWallets,
+          updatedAt: Date.now(),
+          updatedByHandle: adminIdentity.username,
+        };
+
+        meta.settings = next;
+        await saveP2PMeta(supabase, meta);
+
+        await supabase.from('chainscope_admin_audit_logs').insert({
+          id: makeId('audit'),
+          actor_uid: req.authUser!.uid,
+          actor_handle: adminIdentity.username,
+          action: 'P2P_SETTINGS_UPDATED',
+          target_id: 'p2p_settings',
+          details: `BuyMinTrades=${next.minCompletedTradesToBuy}, AutoRelease=${next.autoReleaseEnabled} (${next.autoReleaseAfterMins}m), ReceivingWallets=${next.escrowReceivingWallets.length}`,
+          created_at: new Date().toISOString(),
+        });
+
+        return next;
+      });
+
+      res.json({ settings: updatedSettings });
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to save P2P settings' });
+    }
+  });
+
+  // Admin: Directly Mark Fiat as Paid (Automate / Override)
+  app.post(
+    '/api/db/admin/p2p/orders/:id/mark-paid',
+    requireAuth,
+    requireAdmin,
+    async (req: P2PAuthedRequest, res) => {
+      const supabase = getSupabaseAdminClient()!;
+      const id = String(req.params.id || '');
+      const note = String((req.body as { note?: string } | undefined)?.note || '').trim().slice(0, 300);
+
+      try {
+        const adminIdentity = await resolveBoundTraderIdentity(supabase, req.authUser!);
+        const order = await withP2PLock(async () => {
+          const { state, mode } = await loadP2PState(supabase);
+          const ord = state.orders[id];
+          if (!ord) throw new Error('Order not found.');
+          if (ord.status !== 'escrow_locked' && ord.status !== 'awaiting_escrow') {
+            throw new Error(`Order is already "${ord.status}".`);
+          }
+
+          const now = Date.now();
+          ord.status = 'fiat_paid';
+          ord.fiatPaidAt = now;
+          ord.fiatProofRef = ord.fiatProofRef || `ADMIN-VERIFIED-${now.toString().slice(-6)}`;
+          ord.fiatProofNote = note || `Verified and marked as fiat paid by KingAdmin @${adminIdentity.username}`;
+          ord.updatedAt = now;
+
+          await persistOrder(supabase, state, mode, ord);
+          await appendSystemMessageAndBroadcast(
+            supabase,
+            state,
+            mode,
+            ord,
+            `KingAdmin @${adminIdentity.username} marked this trade as FIAT PAID (${ord.fiatProofRef}).`
+          );
+
+          await supabase.from('chainscope_admin_audit_logs').insert({
+            id: makeId('audit'),
+            actor_uid: req.authUser!.uid,
+            actor_handle: adminIdentity.username,
+            action: 'P2P_ADMIN_MARKED_PAID',
+            target_id: ord.id,
+            details: `Marked ${ord.fiatAmount} ${ord.fiatCurrency} paid (${ord.fiatProofRef})`,
+            created_at: new Date(now).toISOString(),
+          });
+
+          return ord;
+        });
+
+        res.json({ order });
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Admin mark-paid failed' });
+      }
+    }
+  );
+
+  // Admin: Directly Release Escrowed Coins to Buyer
+  app.post(
+    '/api/db/admin/p2p/orders/:id/release',
+    requireAuth,
+    requireAdmin,
+    async (req: P2PAuthedRequest, res) => {
+      const supabase = getSupabaseAdminClient()!;
+      const id = String(req.params.id || '');
+      const note = String((req.body as { note?: string } | undefined)?.note || '').trim().slice(0, 400);
+
+      try {
+        const adminIdentity = await resolveBoundTraderIdentity(supabase, req.authUser!);
+        const order = await withP2PLock(async () => {
+          const { state, mode } = await loadP2PState(supabase);
+          const ord = state.orders[id];
+          if (!ord) throw new Error('Order not found.');
+          if (!['escrow_locked', 'fiat_paid', 'disputed'].includes(ord.status)) {
+            throw new Error(`Cannot release coins from state "${ord.status}".`);
+          }
+
+          if (ord.escrowAssetLocked) {
+            await creditVault(
+              supabase,
+              ord.escrowMode,
+              ord.asset,
+              ord.buyerUid,
+              ord.buyerUsername,
+              ord.netBuyerCrypto,
+              `KingAdmin Direct Escrow Release #${ord.id}`
+            );
+          }
+
+          const now = Date.now();
+          ord.status = ord.status === 'disputed' ? 'resolved_buyer' : 'released';
+          ord.adminResolutionNote =
+            note || `Coins directly released to @${ord.buyerUsername} by KingAdmin @${adminIdentity.username}`;
+          ord.resolvedByUid = req.authUser!.uid;
+          ord.resolvedByHandle = adminIdentity.username;
+          ord.completedAt = now;
+          ord.updatedAt = now;
+
+          await persistOrder(supabase, state, mode, ord);
+          await appendSystemMessageAndBroadcast(
+            supabase,
+            state,
+            mode,
+            ord,
+            `KingAdmin @${adminIdentity.username} released ${ord.netBuyerCrypto} ${ord.asset} from Escrow to Buyer @${ord.buyerUsername}.`
+          );
+
+          await supabase.from('chainscope_admin_audit_logs').insert({
+            id: makeId('audit'),
+            actor_uid: req.authUser!.uid,
+            actor_handle: adminIdentity.username,
+            action: 'P2P_ADMIN_RELEASED_COINS',
+            target_id: ord.id,
+            details: `Released ${ord.netBuyerCrypto} ${ord.asset} to @${ord.buyerUsername} — ${ord.adminResolutionNote}`,
+            created_at: new Date(now).toISOString(),
+          });
+
+          return ord;
+        });
+
+        res.json({ order });
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Admin release failed' });
+      }
+    }
+  );
+
+  // Admin: Dispute Resolution (Release to Buyer OR Refund to Seller)
   app.post(
     '/api/db/admin/p2p/orders/:id/resolve',
     requireAuth,
@@ -2005,9 +3017,10 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
 
           if (body.decision === 'release_to_buyer') {
             if (ord.escrowAssetLocked) {
-              await settleEscrowCredit(
+              await creditVault(
                 supabase,
-                ord,
+                ord.escrowMode,
+                ord.asset,
                 ord.buyerUid,
                 ord.buyerUsername,
                 ord.netBuyerCrypto,
@@ -2017,9 +3030,10 @@ export function registerP2PRoutes(app: Express, deps: P2PRouteDeps) {
             ord.status = 'resolved_buyer';
           } else {
             if (ord.escrowAssetLocked && ord.escrowLockedAmount > 0) {
-              await settleEscrowCredit(
+              await creditVault(
                 supabase,
-                ord,
+                ord.escrowMode,
+                ord.asset,
                 ord.sellerUid,
                 ord.sellerUsername,
                 ord.escrowLockedAmount,

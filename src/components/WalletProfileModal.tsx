@@ -11,12 +11,19 @@ import {
   Lock,
   LogOut,
   ShieldCheck,
+  Sparkles,
   Unlock,
+  Wallet,
   X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { truncateAddress } from '../utils/chains';
-import { AVATAR_PRESET_COLORS, compressAvatarImageFile } from '../utils/walletVault';
+import { deriveMultiChainFromMnemonic, generateRandomMnemonic } from '../utils/crypto';
+import {
+  AVATAR_PRESET_COLORS,
+  compressAvatarImageFile,
+  encryptAndSaveWalletVault,
+} from '../utils/walletVault';
 
 export function WalletProfileModal() {
   const {
@@ -39,6 +46,7 @@ export function WalletProfileModal() {
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [bindVaultPassword, setBindVaultPassword] = useState('');
   const [vaultPasswordInput, setVaultPasswordInput] = useState('');
   const [revealedMnemonic, setRevealedMnemonic] = useState<string | null>(null);
   const [currentPw, setCurrentPw] = useState('');
@@ -55,9 +63,15 @@ export function WalletProfileModal() {
     setNotice(null);
     setRevealedMnemonic(null);
     setVaultPasswordInput('');
+    setBindVaultPassword('');
   }, [showProfileModal, walletAccount, profile, user]);
 
   if (!showProfileModal || !user) return null;
+
+  const needsWalletBind =
+    !walletAccount?.evmAddress &&
+    !walletAccount?.solanaAddress &&
+    !walletAccount?.cscAddress;
 
   const copyValue = (val: string, key: string) => {
     void navigator.clipboard.writeText(val);
@@ -90,6 +104,132 @@ export function WalletProfileModal() {
       setNotice({ type: 'ok', text: 'Wallet profile & photo saved to Supabase.' });
     } catch (err) {
       setNotice({ type: 'err', text: err instanceof Error ? err.message : 'Save failed' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleGenerateAndBindWallet = async () => {
+    setBusy('bind_generate');
+    setNotice(null);
+    try {
+      const mnemonic = generateRandomMnemonic(12);
+      const derived = await deriveMultiChainFromMnemonic(mnemonic, 0);
+      const cscAddress = `CSC1${derived.solanaAddress}`;
+
+      const updated = await updateWalletProfileSettings({
+        displayName: displayName.trim() || undefined,
+        username: username.trim().replace(/^@/, '') || undefined,
+        avatarUrl,
+        evmAddress: derived.evmAddress,
+        solanaAddress: derived.solanaAddress,
+        cscAddress,
+      });
+
+      if (bindVaultPassword.trim().length >= 8) {
+        await encryptAndSaveWalletVault(
+          {
+            uid: updated.uid,
+            username: updated.username,
+            mnemonic,
+            evmAddress: derived.evmAddress,
+            evmPrivateKey: derived.evmPrivateKey,
+            solanaAddress: derived.solanaAddress,
+            solanaPrivateKey: derived.solanaPrivateKey,
+            cscAddress,
+            createdAt: Date.now(),
+          },
+          bindVaultPassword.trim()
+        );
+      }
+
+      window.dispatchEvent(
+        new CustomEvent('chainscope:wallet-provisioned', {
+          detail: {
+            username: updated.username,
+            evmAddress: derived.evmAddress,
+            solanaAddress: derived.solanaAddress,
+          },
+        })
+      );
+
+      setRevealedMnemonic(mnemonic);
+      setNotice({
+        type: 'ok',
+        text: `Generated & permanently bound 1:1 multi-chain wallet to @${updated.username}. Save your 12-word recovery phrase shown below.`,
+      });
+    } catch (err) {
+      setNotice({
+        type: 'err',
+        text: err instanceof Error ? err.message : 'Unable to generate 1:1 wallet',
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleBindDetectedBrowserWallet = async () => {
+    setBusy('bind_browser');
+    setNotice(null);
+    try {
+      const win = window as unknown as {
+        ethereum?: { request: (a: { method: string }) => Promise<string[]> };
+        phantom?: { solana?: { connect: () => Promise<{ publicKey: { toString: () => string } }> } };
+        solana?: { connect: () => Promise<{ publicKey: { toString: () => string } }> };
+      };
+
+      let evmAddress = '';
+      let solanaAddress = '';
+
+      if (win.ethereum) {
+        const accounts = await win.ethereum.request({ method: 'eth_requestAccounts' });
+        if (accounts?.[0]) evmAddress = accounts[0];
+      }
+      const solProvider = win.phantom?.solana || win.solana;
+      if (solProvider) {
+        try {
+          const resp = await solProvider.connect();
+          if (resp?.publicKey) solanaAddress = resp.publicKey.toString();
+        } catch {
+          // Allow binding EVM even if Solana user cancels
+        }
+      }
+
+      if (!evmAddress && !solanaAddress) {
+        throw new Error(
+          'No MetaMask or Phantom browser wallet detected. Click "Generate & Bind New 1:1 Seed Wallet" instead.'
+        );
+      }
+
+      const cscAddress = solanaAddress ? `CSC1${solanaAddress}` : '';
+      const updated = await updateWalletProfileSettings({
+        displayName: displayName.trim() || undefined,
+        username: username.trim().replace(/^@/, '') || undefined,
+        avatarUrl,
+        evmAddress: evmAddress || undefined,
+        solanaAddress: solanaAddress || undefined,
+        cscAddress: cscAddress || undefined,
+      });
+
+      window.dispatchEvent(
+        new CustomEvent('chainscope:wallet-provisioned', {
+          detail: {
+            username: updated.username,
+            evmAddress,
+            solanaAddress,
+          },
+        })
+      );
+
+      setNotice({
+        type: 'ok',
+        text: `Bound external wallet permanently 1:1 to @${updated.username}. You can now trade on Decentralized P2P.`,
+      });
+    } catch (err) {
+      setNotice({
+        type: 'err',
+        text: err instanceof Error ? err.message : 'Unable to bind browser wallet',
+      });
     } finally {
       setBusy(null);
     }
@@ -196,10 +336,10 @@ export function WalletProfileModal() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-base font-bold text-slate-900 dark:text-slate-100">
-              Wallet Profile & Security
+              Wallet Profile &amp; Security
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Manage your @username identity, profile photo, encrypted seed vault, and optional Google login
+              Manage your @username identity, 1:1 bound wallet, profile photo, and seed vault
             </p>
           </div>
           <button
@@ -221,6 +361,62 @@ export function WalletProfileModal() {
             }`}
           >
             {notice.text}
+          </div>
+        )}
+
+        {/* Direct 1:1 Wallet Bind Banner (for Google-signed-in users without bound addresses) */}
+        {needsWalletBind && (
+          <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-3">
+            <div className="flex items-start gap-2.5">
+              <Wallet className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                  Bind Your 1:1 Wallet to @{username || 'trader'}
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Decentralized P2P &amp; CSC transfers require one permanent EVM + Solana + CSC-1
+                  wallet address tied 1:1 to your @username. Generate a new self-custody seed wallet
+                  in 1 click or bind your browser wallet.
+                </p>
+              </div>
+            </div>
+
+            <input
+              type="password"
+              value={bindVaultPassword}
+              onChange={(e) => setBindVaultPassword(e.target.value)}
+              placeholder="Optional local vault password (8+ chars to encrypt seed locally)"
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B0F17] text-xs text-slate-900 dark:text-slate-100"
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void handleGenerateAndBindWallet()}
+                className="py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-1.5"
+              >
+                {busy === 'bind_generate' ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5" />
+                )}
+                Generate &amp; Bind 1:1 Wallet
+              </button>
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void handleBindDetectedBrowserWallet()}
+                className="py-2 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B0F17] hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold flex items-center justify-center gap-1.5"
+              >
+                {busy === 'bind_browser' ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Link2 className="w-3.5 h-3.5 text-emerald-500" />
+                )}
+                Bind Browser Wallet
+              </button>
+            </div>
           </div>
         )}
 
@@ -287,7 +483,7 @@ export function WalletProfileModal() {
             </div>
           </div>
 
-          {walletAccount && (
+          {walletAccount && (walletAccount.cscAddress || walletAccount.evmAddress || walletAccount.solanaAddress) && (
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] p-3 space-y-2 text-[11px] font-mono">
               <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-slate-200 dark:border-slate-800 font-sans">
                 <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
@@ -344,7 +540,7 @@ export function WalletProfileModal() {
             className="w-full py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-2"
           >
             {busy === 'save' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Save Profile & Photo
+            Save Profile &amp; Photo
           </button>
         </form>
 

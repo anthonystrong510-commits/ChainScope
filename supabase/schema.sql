@@ -440,3 +440,9 @@ ALTER TABLE public.chainscope_p2p_payment_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chainscope_p2p_ads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chainscope_p2p_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chainscope_p2p_messages ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.chainscope_p2p_ads ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'public';
+ALTER TABLE public.chainscope_p2p_ads ADD COLUMN IF NOT EXISTS private_code TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.chainscope_p2p_ads ADD COLUMN IF NOT EXISTS pre_funded_escrow BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.chainscope_p2p_ads ADD COLUMN IF NOT EXISTS escrow_locked_balance NUMERIC NOT NULL DEFAULT 0;
+
